@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Epic 周免游戏领取助手</h1>
+  <h1>Epic Weekly Free Games Helper</h1>
   <p>A fully free Epic weekly free-games claimer powered by GitHub Actions.</p>
 
   <p>
@@ -11,204 +11,197 @@
   </p>
 </div>
 
-[🇨🇳 中文文档](README.md) | [🇺🇸 English](README.en.md)
+[🇺🇸 English](README.md) | [🇨🇳 中文文档](README.zh.md)
 
-**Epic 周免游戏领取助手** 面向普通用户，默认运行在 GitHub Actions 上。你不需要服务器，不需要本地常驻环境，也不用额外部署；只要有 GitHub 账号，按文档完成配置后就可以开始使用。
+`Epic Weekly Free Games Helper` is built for regular users. It runs on GitHub Actions by default, so you do not need a server, a permanently running local machine, or any extra deployment. If you have a GitHub account, you can get started by following the setup steps below.
 
-这个项目最核心的特点很直接：**完全免费**。
+The key point is simple: it is **fully free**. In the common setup, you do not need to pay for a server or keep a local machine online. GitHub Actions is enough to run the weekly claim flow automatically.
 
-本项目基于社区开源方案持续完善，并接入了国产 `GLM` 多模态模型。项目核心目标是保障自动登录、验证码识别及结账流程的稳定性。相比配合 Gemini，配置 GLM 模型流程更简便，且免费额度足以满足日常自动运行需求。
+The project is built upon community open-source solutions and incorporates `GLM` multimodal support. Its core objective is to ensure the stability of auto-login, captcha recognition, and checkout processes. Compared to Gemini, the GLM setup process is more straightforward, and its free quota is sufficient for regular automated execution.
 
-**如果你选择 `GLM` 路线，请先确认对应智谱账号已经完成实名认证，否则通常无法正常使用 API。**
-> 2026.4.28: 部分朋友反馈，不实名认证也能调用API，所以如出现无法使用的情况，请检查该项。
-> 2026.7.30: 首次实名认证赠送三个月的glm-v4.7的资源包，因此可以正常使用三个月。
+**If you choose the `GLM` route, make sure the related Zhipu account has already passed real-name verification, or the API may remain unavailable.**
+> 2026.4.28: Some users reported that the API can be called without real-name verification, so if you encounter unavailability, please check this setting.
 
-> [!WARNING]
-> 若执行日志出现以下错误：
->
-> `GLM quota/rate limit issue | http_status=429 | code=1113 | message=余额不足或无可用资源包，请充值。`
->
-> 则说明资源包可能已经过期。您可以前往智谱官网充值少量余额后继续使用。（支持国产，从我做起！）
+If you do not have a Zhipu account yet, you can register through this invite link: [BigModel.cn invite link](https://www.bigmodel.cn/invite?icode=A75tQCByIvrO4k6SLkU5BQZ3c5owLmCCcMQXWcJRS8E%3D).
 
-还没有智谱账号的话，可以通过这个邀请链接注册：[BigModel.cn 邀请注册链接](https://www.bigmodel.cn/invite?icode=A75tQCByIvrO4k6SLkU5BQZ3c5owLmCCcMQXWcJRS8E%3D)。
+Community discussion and feedback are welcome on [LINUX DO](https://linux.do/t/topic/2036835/4).
 
-社区交流与反馈欢迎前往：[LINUX DO](https://linux.do/t/topic/2036835/4)。
+If the project worked for you, feel free to leave a message here too: [🎉 Success Stories / Successful runs](https://github.com/Ronchy2000/epic-freebies-helper/discussions/3).
 
-如果你已经成功跑通，也欢迎来这里留言打卡：[🎉 成功反馈 / Success Stories](https://github.com/Ronchy2000/epic-freebies-helper/discussions/3)。
-
-如果你遇到报错，也欢迎直接提 [Issue](https://github.com/Ronchy2000/epic-freebies-helper/issues)。当然，是否继续使用完全由你决定；但如果你愿意留下反馈，而不是直接删库放弃，这些真实问题和使用体验，都会帮助这个项目继续改进，也会成为我们一起把它做得更稳的动力。
+If you run into an error, please feel free to open an [Issue](https://github.com/Ronchy2000/epic-freebies-helper/issues). The choice is always yours, and I respect that; still, if you are willing to leave feedback instead of deleting the repo and walking away, those real reports and user experiences directly help improve the project and keep this effort moving forward.
 
 ---
 
-## 功能概览
+## Feature Overview
 
-| 功能 | 说明 |
+| Feature | Description |
 | --- | --- |
-| 自动登录 | 自动完成 Epic 账号登录 |
-| 自动发现周免 | 拉取并识别当周可领取游戏 |
-| 自动领取 | 自动进入商品页并完成结账流程 |
-| 领取结果通知 | 可选发送 Telegram / WXPush（微信）运行摘要 |
-| 多账号支持 | 可选；不配置时保持原有单账号行为 |
-| 验证码处理 | 支持登录验证码和 checkout 二次安全校验 |
-| 定时执行 | 默认每周四晚通过 GitHub Actions 运行一次，可自行调整 |
+| Auto login | Signs in to your Epic account automatically |
+| Weekly free games discovery | Fetches and identifies currently claimable free titles |
+| Auto claim | Opens product pages and completes the checkout flow |
+| Claim result notifications | Optionally sends a Telegram / WXPush (WeChat) run summary |
+| Multi-account support | Optional; single-account behavior is unchanged when not configured |
+| Captcha handling | Supports login captcha and checkout security checks |
+| Scheduled execution | Runs once every Thursday by default on GitHub Actions and can be adjusted |
 
 ---
 
-## 为什么推荐 GLM
+## Why GLM Is Recommended
 
-推荐优先使用 GLM 路线，主要优势如下：
+The GLM path is primarily recommended for the following advantages:
 
-- 配置更少：主要只要设置 `GLM_API_KEY` 和 `GLM_MODEL`。
-- 成本更低：`glm-4.6v` 的免费额度通常足够覆盖周免领取场景。
-- 更稳：`glm-4.6v-flash` 在高峰期偶尔会报“该模型当前访问量过大，请您稍后重试”，建议直接使用 `glm-4.6v`。
-- 对国内用户更友好：不需要先解决 Google AI Studio 注册和可用性问题。
-- 能力已验证：登录验证码、checkout 二次验证、拖拽/点选/多选题都能正常处理。
-
----
-
-## 环境与前提要求
-
-- Epic 账号邮箱与密码（用于登录）。
-- 关闭 Epic 账号邮箱 / 短信 2FA；如使用验证器 App 2FA，请配置 `EPIC_TOTP_SECRET`。
-- 注册 GLM 并准备 `GLM_API_KEY`（用于验证码识别）。
+- Less configuration: in most cases you only need `GLM_API_KEY` and `GLM_MODEL`.
+- Lower cost: the free quota of `glm-4.6v` is often enough for the weekly-claim use case.
+- More stable for this project: `glm-4.6v-flash` can occasionally fail under load with "the current model is too busy", so `glm-4.6v` is the safer default.
+- Better fit for users in China: you do not need to solve Google AI Studio registration or availability first.
+- Capability already validated: login captcha, checkout verification, drag, click, and multi-select challenges have all been verified in real runs.
 
 ---
 
-## 🚀 快速开始
+## Prerequisites
 
-基础配置与运行流程如下：
+- Your Epic account email and password.
+- Disable Epic email/SMS 2FA. Authenticator-app 2FA is supported when `EPIC_TOTP_SECRET` is configured.
+- A GLM account with `GLM_API_KEY` prepared for captcha solving.
 
-### 1. Fork 并启用 Actions
+---
+
+## 🚀 Quick Start
+
+Basic configuration and execution steps:
+
+### 1. Fork the repository and enable Actions
 
 > [!TIP]
-> 如果你已经 Fork 过这个仓库，建议先在 GitHub 网页上进入你自己的仓库，点击 `Sync fork` -> `Update branch`，先和最新项目保持一致，再继续后面的配置和运行。
+> If you have already forked this repository before, go to your fork on GitHub first and click `Sync fork` -> `Update branch` so your copy is aligned with the latest upstream changes before you continue.
 
-Fork 之后先打开自己仓库的 `Actions` 页面，进入 `Epic Awesome Gamer (Scheduled)` 并点一次 `Enable workflow`，否则 GitHub 不会让这个 Fork 的定时 `schedule` 自动生效。
+After forking, open the `Actions` page in your fork, enter `Epic Awesome Gamer (Scheduled)`, and click `Enable workflow` once, or GitHub will not activate the scheduled run for that fork.
 
-- Fork 到自己的 GitHub 账号。
-- 打开 `Actions`，启用工作流 `Epic Awesome Gamer (Scheduled)`。
+- Fork the repo to your own GitHub account.
+- Open `Actions` and enable the workflow named `Epic Awesome Gamer (Scheduled)`.
 
-### 2. 配置 Secrets 和 Variables
+### 2. Configure Secrets and Variables
 
-进入 `Settings` -> `Secrets and variables` -> `Actions`。
+Go to `Settings` -> `Secrets and variables` -> `Actions`.
 
-账号、密码和 API Key 必须放在 `Secrets`。`LLM_PROVIDER` 以及所有 `*_MODEL` 模型名属于非敏感配置，建议放在 `Variables`；工作流会优先读取 Variables，并继续兼容已有的同名 Secrets。程序启动时会打印实际模型路由，包括 `SPATIAL_PATH_REASONER_MODEL`。如果模型名仍保存在 Secrets 中，GitHub 会把日志里的同值自动显示为 `***`；迁移到 Variables 并删除同名 Secret 后即可正常显示。
+Keep account credentials and API keys in `Secrets`. `LLM_PROVIDER` and all `*_MODEL` names are non-sensitive configuration and should be stored in `Variables`. The workflow reads Variables first while retaining fallback support for existing Secrets. Startup logs now print the effective model routing, including `SPATIAL_PATH_REASONER_MODEL`. GitHub masks any value that still exists as a Secret, so move the model name to Variables and remove the same-named Secret if you need the exact value to remain visible in logs.
 
-必须配置（单账号，默认路径）：
+Required in all single-account setups (default path):
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
 | `EPIC_EMAIL` | your_epic_email@example.com |
 | `EPIC_PASSWORD` | your_epic_password |
 
-如果 Epic 账号启用了验证器 App 2FA，请额外配置：
+If the Epic account uses authenticator-app 2FA, also configure:
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
-| `EPIC_TOTP_SECRET` | 验证器二维码对应的 Base32 密钥 |
+| `EPIC_TOTP_SECRET` | The Base32 secret encoded in the authenticator QR code |
 
-工作流会在 MFA 页面自动生成 6 位 TOTP。邮箱验证码、短信验证码和 Passkey 暂不支持；不要填写当前显示的 6 位动态验证码。
+The workflow generates the current six-digit TOTP on the MFA page. Email codes, SMS codes, and Passkeys are not supported. Do not enter the currently displayed six-digit code as the Secret.
 
-如果需要接收 Telegram 领取结果通知，请额外配置以下 Secrets：
+To receive Telegram claim summaries, optionally configure these Secrets:
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot Token |
-| `TELEGRAM_CHAT_ID` | Telegram 聊天 ID |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID |
 
-两个配置需要同时存在才会发送通知。通知包含运行状态、本周游戏、新领取、此前已拥有、未确认成功项目及失败原因。Telegram 发送失败不会影响领取任务；未配置时保持现有行为。
+Both settings must be present before a notification is sent. The message includes run status, current weekly games, newly claimed games, previously owned games, unconfirmed items, and failure reasons. Telegram delivery failures do not affect the claim task; when these settings are absent, the existing behavior is preserved.
 
-如果还想接收 WXPush（微信模板消息）领取结果通知，需要先自行部署一个 [wxpush](https://github.com/frankiejun/wxpush) 服务（Cloudflare Workers 或 Docker），然后在仓库中额外配置以下 Secrets：
+To also receive WXPush (WeChat template message) claim summaries, deploy your own [wxpush](https://github.com/frankiejun/wxpush) service first (Cloudflare Workers or Docker), then add these Secrets to the repository:
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
-| `WXPUSH_ENDPOINT` | `https://your-worker.workers.dev`（服务根地址即可，程序会自动补全 `/wxsend`） |
-| `WXPUSH_TOKEN` | 部署 wxpush 时设置的 `API_TOKEN` |
+| `WXPUSH_ENDPOINT` | `https://your-worker.workers.dev` (service root is fine; `/wxsend` is appended automatically) |
+| `WXPUSH_TOKEN` | The `API_TOKEN` you set when deploying wxpush |
 
-可选配置：
+Optional settings:
 
-| 配置名 | 示例值 | 说明 |
+| Setting | Example value | Description |
 | --- | --- | --- |
-| `WXPUSH_USERID` | `OPENID1\|OPENID2` | 覆盖 wxpush 默认接收用户；不配置则使用 wxpush 侧的 `WX_USERID` |
-| `WXPUSH_TEMPLATE_ID` | 模板 ID | 覆盖 wxpush 默认模板；不配置则使用 wxpush 侧的 `WX_TEMPLATE_ID` |
-| `WXPUSH_BASE_URL` | `https://example.com/skin` | 点击模板消息后的跳转地址；不配置时默认跳转 wxpush 服务的 `/skin` 页查看完整内容 |
+| `WXPUSH_USERID` | `OPENID1\|OPENID2` | Overrides the wxpush default recipients; when absent, wxpush's `WX_USERID` is used |
+| `WXPUSH_TEMPLATE_ID` | Template ID | Overrides the wxpush default template; when absent, wxpush's `WX_TEMPLATE_ID` is used |
+| `WXPUSH_BASE_URL` | `https://example.com/skin` | Tap-through URL for the template message; when absent, the wxpush `/skin` page is used to view the full content |
 
-WXPush 与 Telegram 相互独立、可同时启用。受微信模板消息限制（标题字段约 20 字、不支持换行），WXPush 标题为单行浓缩摘要，直接带上关键计数（如 `Epic 周免领取:新领2/共7款`、部分失败时 `Epic 周免领取:新领2 失败1`、全部失败时 `Epic 周免领取失败:原因…`）；正文为完整的纯文本游戏清单（运行状态、本周游戏、本次新领取等分区）。微信原生弹窗通常只显示正文开头约 20 字，点开模板消息会跳转到 wxpush 的 `/skin` 页查看完整清单；若你的微信模板内容字段属严格类型，超长正文可能导致整条发送失败（仅记日志、不影响领取任务），可改用 Telegram 接收完整摘要。WXPush 发送失败不会影响领取任务；未配置时保持现有行为。
+WXPush is independent from Telegram and both can be enabled at once. Because WeChat template title fields are limited (about 20 characters, no newlines), the WXPush title is a dense single-line summary carrying the key counts (for example `Epic 周免领取:新领2/共7款`, `Epic 周免领取:新领2 失败1` on partial failure, or `Epic 周免领取失败:<reason>` on total failure); the content carries the full plain-text game list (run status, weekly games, newly claimed games, and so on). WeChat native popups usually show only the first ~20 characters of the content — tap the template message to open the wxpush `/skin` page for the complete list. If your WeChat template's content field is a strict type, an over-long body can fail the whole send (logged only, never affecting the claim task); Telegram remains available for the full summary. WXPush delivery failures do not affect the claim task; when these settings are absent, the existing behavior is preserved.
 
-如果共享云 IP 导致 hCaptcha 风控明显加重，可选配置 `BROWSER_PROXY` Secret。支持 `http://用户名:密码@主机:端口`、`https://...`、`socks4://...` 和 `socks5://...`；未配置时浏览器网络路径保持不变。代理质量、可信度和费用由使用者自行负责。
+If shared cloud IP reputation causes unusually difficult hCaptcha challenges, you may optionally add a `BROWSER_PROXY` Secret. Supported forms are `http://username:password@host:port`, `https://...`, `socks4://...`, and `socks5://...`. Without it, browser networking is unchanged. Proxy quality, trust, and cost remain the user's responsibility.
 
-如果你使用 `GLM`，建议先按下面这组填写：
+If you use `GLM`, start with this set:
 
-**如果你把 `LLM_PROVIDER` 设为 `glm`，就必须填写 `GLM_API_KEY`；无需新建并填写 `GEMINI_API_KEY`。**
+**If you plan to use `GLM_API_KEY`, make sure the related Zhipu account has already passed real-name verification, or the API may remain unavailable.**
+**If you set `LLM_PROVIDER=glm`, you must provide `GLM_API_KEY`; there is no need to create or fill `GEMINI_API_KEY`.**
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
 | `LLM_PROVIDER` | glm |
-| `GLM_API_KEY` | 你的智谱 API Key |
+| `GLM_API_KEY` | Your Zhipu API key |
 | `GLM_BASE_URL` | https://open.bigmodel.cn/api/paas/v4 |
 | `GLM_MODEL` | glm-4.6v |
 
-配置页面示例：
-![GLM API获取](docs/images/tutorial/GLM-API.png)
+Configuration page example:
+![GLM API setup](docs/images/tutorial/GLM-API.png)
 
-![GitHub Actions Secrets 配置示例](docs/images/tutorial/step2-actions-secrets.png)
+![GitHub Actions Secrets example](docs/images/tutorial/step2-actions-secrets.png)
 
-如果你使用 `Gemini 官方接口`，请按下面这组填写：
+If you use the `official Gemini API`, use this set:
 
-**如果你把 `LLM_PROVIDER` 设为 `gemini`，就必须填写 `GEMINI_API_KEY`；无需新建并填写 `GLM_API_KEY`。**
+**If you set `LLM_PROVIDER=gemini`, you must provide `GEMINI_API_KEY`; there is no need to create or fill `GLM_API_KEY`.**
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
 | `LLM_PROVIDER` | gemini |
-| `GEMINI_API_KEY` | 你的 Gemini API Key |
-| `GEMINI_BASE_URL` | 留空 |
+| `GEMINI_API_KEY` | Your Gemini API key |
+| `GEMINI_BASE_URL` | leave empty |
 | `GEMINI_MODEL` | gemini-2.5-pro |
 
-如果你使用 `AiHubMix` 这类 Gemini 兼容中转接口，请按下面这组填写：
+If you use a Gemini-compatible relay such as `AiHubMix`, use this set:
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
 | `LLM_PROVIDER` | gemini |
-| `GEMINI_API_KEY` | 你的 AiHubMix Key |
+| `GEMINI_API_KEY` | Your AiHubMix key |
 | `GEMINI_BASE_URL` | https://aihubmix.com |
 | `GEMINI_MODEL` | gemini-2.5-pro |
 
-说明：
+Notes:
 
-- 当前代码同时支持 `Gemini 官方接口` 和 `AiHubMix` 这类 Gemini 兼容接口。
-- 变量名是 `GEMINI_BASE_URL`，不是 `GEMINI_BASE_MODEL`。
-- `LLM_PROVIDER=glm` 时，请填写 `GLM_API_KEY`，无需新建并填写 `GEMINI_API_KEY`。
-- `LLM_PROVIDER=gemini` 时，请填写 `GEMINI_API_KEY`，无需新建并填写 `GLM_API_KEY`。
-- 使用 `Gemini 官方接口` 时，`GEMINI_BASE_URL` 应留空，让 SDK 直接走 Google 官方默认地址。
-- 使用 `AiHubMix` 或其他 Gemini 兼容中转接口时，再填写对应的 `GEMINI_BASE_URL`。
-- 对 `GLM` 路线，推荐把 `GLM_MODEL` 设为 `glm-4.6v`；`glm-4.6v-flash` 在高峰期可能报“该模型当前访问量过大，请您稍后重试”。
-- 对 `Gemini` / `AiHubMix` 路线，建议先用 `GEMINI_MODEL=gemini-2.5-pro` 作为起步配置。
-- `CHALLENGE_CLASSIFIER_MODEL`、`IMAGE_CLASSIFIER_MODEL`、`SPATIAL_POINT_REASONER_MODEL`、`SPATIAL_PATH_REASONER_MODEL` 如果留空，会自动跟随当前 provider 的默认模型，也就是 `GLM_MODEL` 或 `GEMINI_MODEL`。
-- 如果你暂时不想细分模型，最简单的做法就是让上面 4 个覆盖项全部留空。
-- 走 `GLM` 路线时不需要额外再填 `GEMINI_API_KEY`。
+- The current codebase supports both the `official Gemini API` and Gemini-compatible relays such as `AiHubMix`.
+- The variable name is `GEMINI_BASE_URL`, not `GEMINI_BASE_MODEL`.
+- When `LLM_PROVIDER=glm`, fill `GLM_API_KEY`; there is no need to create or fill `GEMINI_API_KEY`.
+- When `LLM_PROVIDER=gemini`, fill `GEMINI_API_KEY`; there is no need to create or fill `GLM_API_KEY`.
+- When you use the `official Gemini API`, leave `GEMINI_BASE_URL` empty so the SDK uses Google's default endpoint.
+- Only set `GEMINI_BASE_URL` when you use `AiHubMix` or another Gemini-compatible relay.
+- For `GLM`, `glm-4.6v` is the recommended starting value; `glm-4.6v-flash` can fail during peak traffic.
+- For `Gemini` / `AiHubMix`, `GEMINI_MODEL=gemini-2.5-pro` is the recommended starting value.
+- If `CHALLENGE_CLASSIFIER_MODEL`, `IMAGE_CLASSIFIER_MODEL`, `SPATIAL_POINT_REASONER_MODEL`, and `SPATIAL_PATH_REASONER_MODEL` are left empty, they automatically follow the active provider default, meaning `GLM_MODEL` or `GEMINI_MODEL`.
+- If you do not want to split models by task yet, leave all four override fields empty.
+- The `GLM` path does not require an extra `GEMINI_API_KEY`.
 
-如果你确实要单独覆盖这 4 个模型，可以直接照下面填写：
+If you do want to override those four model fields explicitly, use values like these:
 
-| 配置名 | GLM 示例值 | Gemini / AiHubMix 示例值 |
+| Setting | GLM example | Gemini / AiHubMix example |
 | --- | --- | --- |
-| `CHALLENGE_CLASSIFIER_MODEL` | 留空或 `glm-4.6v` | 留空或 `gemini-2.5-pro` |
-| `IMAGE_CLASSIFIER_MODEL` | 留空或 `glm-4.6v` | 留空或 `gemini-2.5-pro` |
-| `SPATIAL_POINT_REASONER_MODEL` | 留空或 `glm-4.6v` | 留空或 `gemini-2.5-pro` |
-| `SPATIAL_PATH_REASONER_MODEL` | 留空或 `glm-4.6v` | 留空或 `gemini-2.5-pro` |
+| `CHALLENGE_CLASSIFIER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
+| `IMAGE_CLASSIFIER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
+| `SPATIAL_POINT_REASONER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
+| `SPATIAL_PATH_REASONER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
 
-### 多账号配置（可选）
+### Multi-account support (optional)
 
-这一项完全可选。只配置 `EPIC_EMAIL` / `EPIC_PASSWORD` 时，行为与现有单账号路径一致，不需要改任何现有配置。
+This feature is fully optional. If you only configure `EPIC_EMAIL` / `EPIC_PASSWORD`, the existing single-account path is used unchanged.
 
-如果你有多个 Epic 账号，可以用一个 Secret 同时管理，无需多次 Fork。
+If you have multiple Epic accounts, you can manage them all in a single Secret without forking the repo multiple times.
 
-进入 `Settings` -> `Secrets and variables` -> `Actions`，新建一个 Secret：
+Go to `Settings` -> `Secrets and variables` -> `Actions` and create a new Secret:
 
-| 配置名 | 示例值 |
+| Setting | Example value |
 | --- | --- |
-| `EPIC_ACCOUNTS` | 每行一个账号，格式为 `邮箱:密码` |
+| `EPIC_ACCOUNTS` | One account per line, format: `email:password` |
 
-示例：
+Example:
 
 ```text
 user1@example.com:password1
@@ -216,31 +209,34 @@ user2@example.com:password2
 user3@example.com:password3
 ```
 
-说明：
+Notes:
 
-- 不设置 `EPIC_ACCOUNTS`（或为空）时，直接走原来的单账号路径，不经过账号切换或异常聚合，现有配置与行为不变。
-- 设置了 `EPIC_ACCOUNTS` 且**全部行都合法**时，进入多账号顺序执行。
-- 设置了 `EPIC_ACCOUNTS` 但**没有任何合法行**时，仅当 `EPIC_EMAIL` / `EPIC_PASSWORD` 均已配置才回退到原单账号路径；否则立即报告配置错误，不会以空凭据启动浏览器。
-- 设置了 `EPIC_ACCOUNTS` 且**部分行合法、部分行非法**时，任务会直接以配置错误失败（指出非法行号），不会静默跳过某些账号后报成功。
-- 邮箱格式会做轻量校验，并拒绝路径分隔符与控制字符；密码中如果包含冒号 `:`，只会按第一个冒号分割。
-- 每个账号独立运行：一个账号失败不影响其他账号；每个账号仍复用当前的登录、hCaptcha、TOTP、Telegram、WXPush 与浏览器运行时路径。
-- 每个账号自动使用独立的浏览器配置目录（按邮箱隔离），互不干扰。
-- 多账号 Telegram / WXPush 通知会附带打码后的账号标签；单账号通知格式保持不变。
-- 当前 `EPIC_TOTP_SECRET` 仍是全局配置，适合同一验证器密钥，或只给其中一个账号开 TOTP 的场景；按账号拆分 TOTP 还不支持。
-- 多账号是在同一个任务里顺序执行的，账号越多耗时越长。工作流超时时间可以通过仓库变量 `JOB_TIMEOUT_MINUTES` 调整（默认 60 分钟），账号较多时建议调大。
-
-### 3. 手动运行一次
-
-- 进入 `Actions` 页面。
-- 选择 `Epic Awesome Gamer (Scheduled)`。
-- 点击 `Run workflow`。
+- If `EPIC_ACCOUNTS` is unset or empty, the exact legacy single-account path is used. There is no credential swapping and no aggregated exception wrapping.
+- If `EPIC_ACCOUNTS` is set and **every non-empty line is valid**, the multi-account path runs sequentially.
+- If `EPIC_ACCOUNTS` contains **no valid lines**, the job falls back only when both `EPIC_EMAIL` and `EPIC_PASSWORD` are configured. Otherwise, it fails with a configuration error before starting a browser with empty credentials.
+- If `EPIC_ACCOUNTS` is set with **some valid and some invalid lines**, the job fails with a configuration error that lists the invalid line numbers. It will not silently skip bad lines and still report success.
+- Email shape is lightly validated, including rejection of path separators and control characters. If a password contains a colon `:`, only the first colon is used as the separator.
+- Each account runs independently: one account's failure does not affect the others. Each account still reuses the current login, hCaptcha, TOTP, Telegram, WXPush, and browser runtime path.
+- Each account automatically gets its own isolated browser profile directory keyed by email.
+- Multi-account Telegram / WXPush messages include a masked account label. Single-account formatting is unchanged when no label is supplied.
+- `EPIC_TOTP_SECRET` remains a global setting for now. It fits a shared authenticator secret, or enabling TOTP for only one of the accounts. Per-account TOTP is not supported yet.
+- Multiple accounts run sequentially in one job. Since a single account can take 15-20 minutes, raise the workflow timeout for multiple accounts (see below).
 
 > [!IMPORTANT]
-> **注意**：受 Epic 风控机制影响，脚本在验证码及结账环节可能触发多次重试，单次运行耗时可能长达 15 至 20 分钟。在运行结束前，建议勿手动中断工作流。
+> The workflow `timeout-minutes` defaults to 60, which fits a single account with room to spare. For more accounts, set a repository variable `JOB_TIMEOUT_MINUTES` (Settings -> Secrets and variables -> Actions -> Variables) to roughly 20 minutes per account, or the job may be killed before all accounts finish.
 
-### 4. 看日志确认是否跑通
+### 3. Run the workflow manually once
 
-成功时日志通常会出现类似内容：
+- Open the `Actions` page.
+- Select `Epic Awesome Gamer (Scheduled)`.
+- Click `Run workflow`.
+
+> [!IMPORTANT]
+> **Note**: Due to Epic's risk-control mechanisms, the script may trigger multiple retries during captcha and checkout stages, which can extend the total runtime to 15-20 minutes. It is recommended not to interrupt the workflow manually while it is in progress.
+
+### 4. Check the logs
+
+When the run succeeds, the logs usually contain lines like:
 
 ```text
 Login success
@@ -250,156 +246,143 @@ Starting free games collection process
 All week-free games are already in the library
 ```
 
-示例日志（中间有报错但最终成功）：
+Example log with warnings but final success:
 
-![中间报错但最终成功的日志示例 1](docs/images/tutorial/step4-log-success-with-warnings-1.png)
+![Warnings but final success log example](docs/images/tutorial/step4-log-success-with-warnings-1.png)
 
-如果你在日志里看到多次重试后手动取消，像下面这样；请你下一次运行时多给它一些耐心，有些脚本通常运行15min至20min才成功：
+If the logs show repeated retries and you cancel the run manually, like the example below, that still does not prove the automation had already failed. In many cases it simply had not finished yet:
 
-![不要过早取消 Actions 运行](docs/images/faq/action-cancel-too-early.svg)
-
----
-
-## 运行日志与 Artifact
-
-每次 GitHub Actions 运行结束后，工作流会尝试上传下面这些 artifact。GitHub 只会显示实际有文件的 artifact，所以不同用户可能只看到其中一部分，这是正常现象。
-
-| Artifact | 内容 | 通常什么时候出现 |
-| --- | --- |
-| `epic-logs-<run_id>` | 运行日志 | 基本每次运行都会有 |
-| `epic-runtime-<run_id>` | `promotions.json`、`purchase_debug` 截图和文本 | 已进入周免领取、商品页或 checkout 阶段时常见 |
-| `epic-screenshots-<run_id>` | 登录失败、风控页、授权页等额外截图 | 登录、风控或授权阶段保存过截图时才会有 |
-
-下载位置：
-
-1. 进入本次 Actions 运行页面
-2. 拉到页面底部
-3. 找到 `Artifacts`
-4. 下载 zip 文件
-
-说明：
-
-| 文件包 | 先看什么 |
-| --- | --- |
-| `epic-logs-<run_id>.zip` | 解压后直接看里面的日志文件 |
-| `epic-runtime-<run_id>.zip` | 如果存在，解压后优先看 `purchase_debug/` 里的截图和调试文本 |
-| `epic-screenshots-<run_id>.zip` | 如果存在，优先看登录页、风控页或授权页截图 |
-
-这些内容是 GitHub Actions 每次运行后打包上传的产物，不是仓库根目录里预置好的固定目录。
-
-如果你要提 issue，请不要只粘贴一小段日志。最有用的做法是：
-
-1. 打开出问题的 GitHub Actions 运行页面。
-2. 拉到页面底部，找到 `Artifacts`。
-3. 下载页面中实际出现的 artifact：
-   - `epic-logs-<run_id>.zip`：优先下载，通常每次都有
-   - `epic-runtime-<run_id>.zip`：如果页面中有这个包就下载
-   - `epic-screenshots-<run_id>.zip`：如果页面中有这个包就下载
-4. 新建 issue。
-5. 把这些 zip 直接拖进 issue 编辑框，或者点击附件按钮上传。
-
-这些 zip 里通常已经包含定位问题所需的完整日志、截图和 `purchase_debug` 文本。GitHub issue 支持直接上传 `.zip` 文件。
-
-补充说明：
-
-- 如果你的 fork 是公开仓库，通常附上本次 Actions 运行链接即可，维护者一般可以直接查看对应页面。
-- 如果你的 fork 是私有仓库，请务必上传本次运行实际出现的 artifact zip；维护者无法直接访问私有仓库的 Actions 页面和运行产物。
+![Do not cancel the Actions run too early](docs/images/faq/action-cancel-too-early.svg)
 
 ---
 
-## 本地单次调试
+## Run Logs and Artifacts
 
-如果你想在本地复现和 GitHub Actions 相同的入口，可以直接用仓库内置单次执行方式：
+Each GitHub Actions run attempts to upload the artifacts below. GitHub only shows artifacts that actually contain files, so different users may see only some of them. That is normal.
 
-1. 复制 [`.env.example`](.env.example) 为 `.env`
-2. 填好你自己的账号和模型配置
-3. 执行 `uv sync --group dev`
-4. 执行 `ENABLE_APSCHEDULER=false uv run app/deploy.py`
+| Artifact | Content | When it usually appears |
+| --- | --- |
+| `epic-logs-<run_id>` | Runtime logs | Almost every run |
+| `epic-runtime-<run_id>` | `promotions.json`, `purchase_debug` screenshots, and debug text | Common after the run reaches freebie discovery, product pages, or checkout |
+| `epic-screenshots-<run_id>` | Extra screenshots for login failures, risk-control pages, and auth debugging | Only when the login, risk-control, or auth flow saved screenshots |
 
-`.env`、`.venv`、`app/volumes/` 都已经被 `.gitignore` 忽略，不会被提交到 GitHub。
+Download location:
+
+1. Open the specific Actions run page.
+2. Scroll to the bottom.
+3. Find `Artifacts`.
+4. Download the zip files.
+
+What to inspect first:
+
+| Package | What to inspect first |
+| --- | --- |
+| `epic-logs-<run_id>.zip` | After extraction, open the log files directly |
+| `epic-runtime-<run_id>.zip` | If present, check the screenshots and debug text inside `purchase_debug/` first |
+| `epic-screenshots-<run_id>.zip` | If present, check login, risk-control, or auth screenshots first |
+
+These files are generated and uploaded after each GitHub Actions run. They are not fixed directories pre-shipped in the repository root.
+
+If you need to open an issue, do not paste only a short log excerpt.
+
+- If your fork is public, the Actions run URL is usually enough because maintainers can inspect the run page directly.
+- If your fork is private, you must upload the artifact zip files that were actually generated for that run. Maintainers cannot access private Actions pages or private run artifacts.
+
+---
+
+## Local One-Shot Debugging
+
+If you want to reproduce the same entrypoint locally, use the repository's built-in one-shot run path:
+
+1. Copy [`.env.example`](.env.example) to `.env`
+2. Fill in your own account and model configuration
+3. Run `uv sync --group dev`
+4. Run `ENABLE_APSCHEDULER=false uv run app/deploy.py`
+
+`.env`, `.venv`, and `app/volumes/` are already ignored by `.gitignore`, so they will not be committed to GitHub.
 
 > [!TIP]
-> 如果你的密码或 API Key 含有 `$`、`\`、`#`、`` ` `` 等字符，请用单引号包起来，例如 `EPIC_PASSWORD='abc$def'`，避免 `python-dotenv` 把 `$xxx` 当成变量插值丢失字符。GitHub Actions Secrets 不受此影响。
+> If your password or API key contains `$`, `\`, `#`, or `` ` ``, wrap the value in single quotes (e.g. `EPIC_PASSWORD='abc$def'`) so that `python-dotenv` does not treat `$xxx` as variable interpolation and silently drop characters. GitHub Actions Secrets are not affected.
 
 ---
 
-## 常见问题
+## FAQ
 
-### 1. 登录偶发失败
+### 1. Login randomly fails
 
-**原因**：GitHub Actions 环境采用公共 IP，易触发 Epic 严格风控，导致验证码成功率波动，属预期内现象。
+**Cause**: GitHub Actions environments use shared cloud IPs, which easily trigger Epic's strict risk control, causing fluctuations in captcha success rates. This is an expected behavioral pattern.
 
-### 2. 日志里出现 `privacy-policy correction` 或卡在隐私政策页面
+### 2. Logs mention `privacy-policy correction` or the run gets stuck on a privacy-policy page
 
-这通常不是模型接口问题，而是 Epic 账号状态问题。某些账号在登录成功后，会被额外重定向到类似 `/id/login/correction/privacy-policy` 的页面，要求先确认一次隐私政策。
+This is usually not a model-provider issue. It is an Epic account state issue. Some accounts are redirected after login to a page like `/id/login/correction/privacy-policy`, which requires a one-time privacy-policy confirmation.
 
-处理方式很简单：先在你自己的正常浏览器里手动登录 Epic，完成这个确认页，然后再重新运行 Actions。
+The fix is simple: sign in to Epic once in a normal browser, complete that confirmation page manually, and then rerun the workflow.
 
-### 3. 日志里出现 `two_factor_authentication.required` 或页面跳到 `/id/login/mfa`
+### 3. Logs show `two_factor_authentication.required` or the page goes to `/id/login/mfa`
 
-这说明 Epic 账号进入了二步验证流程。如果使用验证器 App 2FA，可以在 GitHub Secrets 中配置 `EPIC_TOTP_SECRET`，工作流会自动生成并提交 6 位 TOTP。邮箱验证码、短信验证码和 Passkey 暂不支持。
+This means the Epic account entered its two-factor authentication flow. For authenticator-app 2FA, add `EPIC_TOTP_SECRET` to GitHub Secrets and the workflow will generate and submit the current six-digit TOTP. Email codes, SMS codes, and Passkeys are not supported.
 
-如果你看到下面这些信号，通常都可以按“账号需要 2FA 验证”处理：
+If you see signals like these, treat them as “Epic requires 2FA verification”:
 
 - `errors.com.epicgames.common.two_factor_authentication.required`
 - `Two-Factor authentication required to process request`
-- 页面跳转到 `/id/login/mfa`
+- A redirect to `/id/login/mfa`
 
-处理方式：
+How to fix it:
 
-1. 在你自己的正常浏览器里登录 Epic 账号
-2. 进入账号安全设置页面
-3. 如使用验证器 App 2FA，把二维码对应的 Base32 密钥填到 GitHub Secrets 的 `EPIC_TOTP_SECRET`
-4. 不使用验证器自动填码时，把当前启用的验证方式点 `Remove`
-5. 重新运行 Actions
+1. Sign in to the Epic account in a normal browser
+2. Open the account security settings page
+3. For authenticator-app 2FA, add the QR code's Base32 secret to GitHub Secrets as `EPIC_TOTP_SECRET`
+4. If you do not want automatic authenticator codes, click `Remove` for the enabled verification method
+5. Rerun the workflow
 
-参考界面如下：
+Reference page:
 
 ![Epic 2FA remove methods](docs/images/faq/epic-2fa-remove-methods.png)
 
-### 4. 页面弹出 `One more step`
+### 4. The page shows `One more step`
 
-这不是异常，是 Epic 结账阶段追加的人机校验。
+This is not automatically a bug. It is Epic's extra human-verification step during checkout.
 
-**说明**：此为 Epic 结账阶段追加的安全校验机制。项目已适配该环节的自动化处理逻辑，出现这类弹窗不代表脚本已经失效。
+**Description**: This is an additional security verification step during checkout. The workflow already contains automation logic for this stage, so seeing the prompt below does not automatically mean the script is broken.
 
 ![Checkout Security Check](docs/images/faq/checkout-security-check.png)
 
-### 5. 页面提示 `Device not supported`
+### 5. The page shows `Device not supported`
 
-这个提示通常出现在商品只支持 Windows，而 GitHub Actions 运行环境是 Linux 的时候。
+This usually happens when the product officially supports Windows while GitHub Actions is running on Linux.
 
-它本身不一定代表领取失败。当前脚本会尝试自动点击弹窗里的 `Continue` 继续进入后续流程。
+By itself, this does not always mean the claim failed. The current automation will try to click `Continue` on that dialog and keep going.
 
-### 6. 为什么工作流显示成功，但游戏没入库
+### 6. Why can the workflow report success while the game is not in the library?
 
-过去常见根因有：
+Historically, the common root causes were:
 
-| 原因 | 说明 |
+| Cause | Description |
 | --- | --- |
-| 商品页状态识别不准 | 页面文案和实际状态不一致 |
-| `Place Order` 已点击但未完成 | 结账页仍停留在二次验证 |
-| 页面出现额外弹窗 | 例如设备不支持、额外确认 |
-| 旧逻辑误判 | 曾经把普通文案误判成“已拥有” |
+| Product-page state recognition was inaccurate | The page copy and the real state did not match |
+| `Place Order` was clicked but checkout was still incomplete | The checkout page was still blocked by a security check |
+| Another popup interrupted the flow | For example `Device not supported` or an extra confirmation |
+| Older logic misclassified page text | Some non-ownership text was previously misread as "already owned" |
 
 ---
 
-## Docker 部署
+## Docker Deployment
 
-如果你不想用 GitHub Actions，也可以在自己的服务器、NAS 或本地 Docker 环境里跑。
+If you do not want to use GitHub Actions, you can also run the project on your own server, NAS, or local Docker environment.
 
-### 1. 克隆仓库
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Ronchy2000/epic-freebies-helper.git
 cd epic-freebies-helper
 ```
 
-### 2. 修改配置
+### 2. Edit the configuration
 
-主要入口是 [`docker/docker-compose.yaml`](docker/docker-compose.yaml)。
+The main entry is [`docker/docker-compose.yaml`](docker/docker-compose.yaml).
 
-GLM 示例：
+GLM example:
 
 ```yaml
 environment:
@@ -409,7 +392,7 @@ environment:
   - GLM_MODEL=glm-4.6v
 ```
 
-Gemini 官方接口示例：
+Official Gemini API example:
 
 ```yaml
 environment:
@@ -419,7 +402,7 @@ environment:
   - GEMINI_MODEL=gemini-2.5-pro
 ```
 
-AiHubMix 示例：
+AiHubMix example:
 
 ```yaml
 environment:
@@ -429,7 +412,7 @@ environment:
   - GEMINI_MODEL=gemini-2.5-pro
 ```
 
-### 3. 启动
+### 3. Start the stack
 
 ```bash
 docker compose up -d --build
@@ -437,39 +420,40 @@ docker compose up -d --build
 
 ---
 
-## 进阶文档
+## Additional Documentation
 
-如果你想看项目结构、适配细节、开发者排障记录和这次踩过的坑，请继续阅读：
+If you want the project structure, adapter details, and developer-oriented troubleshooting notes, continue with:
 
-- [开发者进阶文档](docs/advanced.md)
-- [Advanced Guide (English)](docs/advanced.en.md)
-- [维护日志](docs/maintenance-log.md)
+- [Advanced Guide](docs/advanced.en.md)
+- [GitHub Actions Guide](.github/workflows/README.md)
+- [Development Log (2026-04-22)](docs/development-log-2026-04-22.en.md)
+- [Maintenance Log](docs/maintenance-log.md)
 
 ---
 
-## 项目来源与参考
+## Project Origins and References
 
-本项目基于 `QIN2DIM/epic-awesome-gamer` 实现，并参考了 `10000ge10000/epic-kiosk`：
+This project is based on `QIN2DIM/epic-awesome-gamer` and also references `10000ge10000/epic-kiosk`:
 
-| 项目 | 说明 |
+| Project | Description |
 | --- | --- |
-| [QIN2DIM/epic-awesome-gamer](https://github.com/QIN2DIM/epic-awesome-gamer) | 原始项目与核心自动化思路来源 |
-| [10000ge10000/epic-kiosk](https://github.com/10000ge10000/epic-kiosk) | GitHub Actions 化和文档组织方式的重要参考 |
-| [LINUX DO](https://linux.do/t/topic/2036835/4) | 社区交流、反馈与项目推广支持 |
+| [QIN2DIM/epic-awesome-gamer](https://github.com/QIN2DIM/epic-awesome-gamer) | Original project and source of the core automation ideas |
+| [10000ge10000/epic-kiosk](https://github.com/10000ge10000/epic-kiosk) | Important reference for GitHub Actions packaging and documentation layout |
+| [LINUX DO](https://linux.do/t/topic/2036835/4) | Community discussion, feedback, and project promotion support |
 
-感谢原作者、维护者和社区的长期积累。
-
----
-
-## 免责声明
-
-- 本项目仅用于学习和研究自动化流程。
-- 自动化操作可能违反相关平台的服务条款，请自行评估风险。
-- 使用本项目产生的后果由使用者自行承担。
+Thanks to the original authors, maintainers, and the community work that made this project possible.
 
 ---
 
-## Star 趋势
+## Disclaimer
+
+- This project is for learning and research around automation flows.
+- Automated actions may violate the target platform's terms of service. Evaluate the risk yourself.
+- You are responsible for any consequences caused by using this project.
+
+---
+
+## Star History
 
 <a href="https://www.star-history.com/#Ronchy2000/epic-freebies-helper&amp;Date">
   <picture>
@@ -490,16 +474,16 @@ docker compose up -d --build
 
 ---
 
-## 社区致谢
+## Community Thanks
 
-本项目的持续完善，离不开每一位在遇到报错时没有选择放弃，而是耐心回传完整错误现场的使用者。
+The continuous improvement of this project relies not only on code iterations, but heavily on every user who, upon encountering an error, chose not to give up, but patiently submitted a complete error report.
 
-许多边界情况的修复，并非源自开发者的独自排查，而是建立在大家主动提供的详实日志、截图与复现步骤之上。正是这些真实的报错数据，让各种隐蔽的问题得以被精准定位并解决。
+The resolution of many edge cases did not stem from unilateral developer testing, but was built upon the detailed logs, screenshots, and reproduction steps actively provided by the community. It is this authentic diagnostic data that enabled obscure and hidden issues to be accurately isolated and resolved.
 
-在此，向所有提供过反馈的用户致以由衷的感谢。是你们投入的时间与提供的测试数据，逐步扫除了开发过程中的盲区，让这个项目日益稳定，切实帮助到了更多人。
+We extend our most genuine gratitude to everyone who has submitted feedback. The time you invested and the real-world data you shared have steadily illuminated the blind spots in development, allowing this project to mature and genuinely benefit a wider audience.
 
 <div align="center">
-  <sub>感谢每一位提过 issue、上传过 artifact、留下过真实失败案例的朋友。</sub>
+  <sub>Thank you to everyone who opened issues, uploaded artifacts, and shared real failure cases.</sub>
 </div>
 
 <p align="center">
