@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Description: Generate .env.example file from AgentConfig
+# Description: Generate .env.example file from a settings class
 
 import inspect
 import re
@@ -17,7 +17,7 @@ def generate_env_example(config_class: Type[BaseSettings]) -> List[str]:
     Generate a .env.example file based on a pydantic BaseSettings class.
 
     Args:
-        config_class: A pydantic BaseSettings class (like AgentConfig)
+        config_class: A pydantic BaseSettings class (like EpicSettings)
 
     Returns:
         Path to the generated .env.example file

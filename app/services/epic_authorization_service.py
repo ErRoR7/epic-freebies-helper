@@ -13,19 +13,13 @@ from contextlib import suppress
 
 os.environ.setdefault("MPLBACKEND", "Agg")
 
-from hcaptcha_challenger.agent import AgentV
-from hcaptcha_challenger.models import ChallengeSignal
+from extensions.captcha_agent import CaptchaAgent, ChallengeSignal
+from extensions.hcaptcha_runtime import wait_for_challenge_signal
 from loguru import logger
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import expect, Page, Response
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-from extensions.hcaptcha_runtime import wait_for_challenge_signal
-from extensions.nopecha_solver import (
-    extract_hcaptcha_params,
-    fetch_nopecha_token,
-    inject_hcaptcha_token,
-)
 from services.epic_totp_service import redact_totp_inputs, submit_totp_challenge, totp_login_enabled
 from settings import SCREENSHOTS_DIR, settings
 
@@ -52,7 +46,6 @@ class EpicAuthorization:
         self._totp_attempts = 0
         self._invalid_totp_rejections = 0
         self._last_captcha_totp_refresh_at = 0.0
-        self._nopecha_attempts = 0
 
     async def _on_response_anything(self, r: Response):
         if r.request.method != "POST" or "talon" in r.url:
@@ -106,7 +99,7 @@ class EpicAuthorization:
 
     async def _handle_right_account_validation(self):
         """
-        以下验证仅会在登录成功后出现
+        The validation below only appears after a successful login
         Returns:
 
         """
@@ -114,7 +107,7 @@ class EpicAuthorization:
 
         btn_ids = ["#link-success", "#login-reminder-prompt-setup-tfa-skip", "#yes"]
 
-        # == 账号长期不登录需要做的额外验证 == #
+        # == Extra validation required when the account has not signed in for a long time == #
 
         while self._is_refresh_csrf_signal.empty() and btn_ids:
             if self._needs_mfa_setup_prompt():
@@ -367,53 +360,8 @@ class EpicAuthorization:
 
         raise PlaywrightTimeoutError("Timed out navigating to Epic claim page")
 
-    async def _try_nopecha_solve(self) -> bool:
-        """Try to clear the visible login hCaptcha with a NopeCHA token.
-
-        Returns True only when a token was injected and the challenge is no
-        longer visible afterwards. Never raises; any failure returns False so
-        the caller falls back to the interactive solver unchanged.
-        """
-        if settings.NOPECHA_API_KEY is None or self._nopecha_attempts >= 3:
-            return False
-        self._nopecha_attempts += 1
-        try:
-            sitekey, rqdata = await extract_hcaptcha_params(self.page)
-            if not sitekey:
-                logger.warning("NopeCHA solve skipped: no hCaptcha sitekey found on page")
-                return False
-
-            token = await fetch_nopecha_token(
-                api_key=settings.NOPECHA_API_KEY.get_secret_value(),
-                sitekey=sitekey,
-                page_url=self.page.url,
-                rqdata=rqdata,
-                timeout_seconds=settings.NOPECHA_TIMEOUT_SECONDS,
-            )
-            if not token:
-                return False
-
-            if not await inject_hcaptcha_token(self.page, token):
-                logger.warning("NopeCHA solve failed: no h-captcha-response field to inject")
-                return False
-
-            # Epic consumes the captcha response when the form is submitted.
-            await self._resubmit_password_form()
-
-            for _ in range(20):
-                if not await self._has_visible_hcaptcha():
-                    logger.success("NopeCHA token solve cleared the login captcha")
-                    return True
-                await self.page.wait_for_timeout(500)
-
-            logger.warning("NopeCHA token injected but the captcha is still visible")
-            return False
-        except Exception as err:
-            logger.warning("NopeCHA solve attempt failed | err={!r}", err)
-            return False
-
     async def _await_login_outcome(
-        self, point_url: str, agent: AgentV, timeout_seconds: int = 300
+        self, point_url: str, agent: CaptchaAgent, timeout_seconds: int = 300
     ) -> None:
         started_at = time.monotonic()
         deadline = started_at + timeout_seconds
@@ -559,18 +507,15 @@ class EpicAuthorization:
                 extend_deadline("captcha-visible", 180)
                 challenge_solved = False
                 try:
-                    if await self._try_nopecha_solve():
-                        challenge_solved = True
-                    else:
-                        challenge_signal = await wait_for_challenge_signal(
-                            agent,
-                            context="login_mfa",
-                            timeout_seconds=min(
-                                settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5,
-                                max(1.0, deadline - time.monotonic()),
-                            ),
-                        )
-                        challenge_solved = challenge_signal is ChallengeSignal.SUCCESS
+                    challenge_signal = await wait_for_challenge_signal(
+                        agent,
+                        context="login_mfa",
+                        timeout_seconds=min(
+                            settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5,
+                            max(1.0, deadline - time.monotonic()),
+                        ),
+                    )
+                    challenge_solved = challenge_signal is ChallengeSignal.SUCCESS
                     if challenge_solved:
                         extend_deadline("captcha-solved", 120)
                     else:
@@ -753,8 +698,10 @@ class EpicAuthorization:
         )
 
     async def _login(self) -> bool | None:
-        # 尽可能早地初始化机器人
-        agent = AgentV(page=self.page, agent_config=settings)
+        # Initialize the captcha agent as early as possible
+        agent = CaptchaAgent(
+            page=self.page, agent_config=settings, after_inject=self._resubmit_password_form
+        )
 
         # {{< SIGN IN PAGE >}}
         logger.debug("Login with Email")
@@ -768,19 +715,19 @@ class EpicAuthorization:
             await self.page.goto(point_url, wait_until="domcontentloaded")
             await self._wait_for_login_form(point_url)
 
-            # 1. 使用电子邮件地址登录
+            # 1. Sign in with the email address
             email_input = self.page.locator("#email")
             await email_input.fill(settings.EPIC_EMAIL)
 
-            # 2. 点击继续按钮
+            # 2. Click the Continue button
             await self.page.click("#continue")
 
-            # 3. 输入密码
+            # 3. Enter the password
             password_input = self.page.locator("#password")
             await expect(password_input).to_be_visible(timeout=10000)
             await password_input.fill(settings.EPIC_PASSWORD.get_secret_value())
 
-            # 4. 点击登录按钮，触发人机挑战值守监听器
+            # 4. Click the sign-in button, triggering the hCaptcha challenge watcher
             # Active hCaptcha checkbox
             await self._submit_login_or_accept_challenge()
 
@@ -788,19 +735,16 @@ class EpicAuthorization:
             for challenge_attempt in range(1, 4):
                 logger.debug("Solving login challenge attempt {}/3", challenge_attempt)
                 challenge_signal = ChallengeSignal.FAILURE
-                if await self._try_nopecha_solve():
-                    challenge_signal = ChallengeSignal.SUCCESS
-                else:
-                    try:
-                        challenge_signal = await wait_for_challenge_signal(
-                            agent,
-                            context=f"login:{challenge_attempt}",
-                            timeout_seconds=(
-                                settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5
-                            ),
-                        )
-                    except Exception:
-                        pass
+                try:
+                    challenge_signal = await wait_for_challenge_signal(
+                        agent,
+                        context=f"login:{challenge_attempt}",
+                        timeout_seconds=(
+                            settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5
+                        ),
+                    )
+                except Exception:
+                    pass
 
                 try:
                     await self._await_login_outcome(point_url, agent, timeout_seconds=25)
@@ -871,7 +815,6 @@ class EpicAuthorization:
         self._totp_attempts = 0
         self._invalid_totp_rejections = 0
         self._last_captcha_totp_refresh_at = 0.0
-        self._nopecha_attempts = 0
 
         max_attempts = settings.AUTH_MAX_ATTEMPTS
         for attempt in range(1, max_attempts + 1):

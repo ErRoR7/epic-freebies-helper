@@ -27,7 +27,7 @@ init_log(
 
 async def add_games_to_cart(page: Page, urls: List[str] | None = None):
     """
-    检测点功能，在登录后，控制前往指定站点点击 Add To Cart 操作
+    Checkpoint: after login, navigate to the target page and click Add To Cart
     Args:
         page:
         urls:
@@ -50,7 +50,7 @@ async def add_games_to_cart(page: Page, urls: List[str] | None = None):
 
 async def collect_games(page: Page):
     """
-    采集周免游戏
+    Collect the weekly free games
     Args:
         page:
 

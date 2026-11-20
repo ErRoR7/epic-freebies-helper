@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 from html import escape
-from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from loguru import logger
@@ -23,7 +22,7 @@ def telegram_notifications_enabled() -> bool:
 
 def _format_error(error: Exception | str | None) -> str:
     if error is None:
-        return "未知错误"
+        return "Unknown error"
 
     message = str(error).strip() or type(error).__name__
     lines = [line.strip() for line in message.splitlines() if line.strip()]
@@ -39,7 +38,7 @@ def _format_error(error: Exception | str | None) -> str:
         message = f"{prefix}: {message}"
 
     if len(message) > 360:
-        return message[:350] + "...(已截断)"
+        return message[:350] + "...(truncated)"
     return message
 
 
@@ -48,15 +47,7 @@ def _format_game_title(game: PromotionGame) -> str:
 
 
 def _format_telegram_game_url(url: str) -> str:
-    parts = urlsplit(url)
-    if parts.netloc.lower() != "store.epicgames.com":
-        return url
-
-    path = parts.path
-    if path == "/en-US" or path.startswith("/en-US/"):
-        path = f"/zh-CN{path[len('/en-US'):]}"
-
-    return urlunsplit((parts.scheme, parts.netloc, path, parts.query, parts.fragment))
+    return url
 
 
 def _format_game_link(game: PromotionGame) -> str:
@@ -69,7 +60,7 @@ def _format_game_link(game: PromotionGame) -> str:
 
 def _format_games(games: list[PromotionGame]) -> str:
     if not games:
-        return "无"
+        return "None"
 
     lines = []
     for game in games:
@@ -83,50 +74,50 @@ def build_telegram_summary_message(
     account_label: str | None = None,
 ) -> str:
     if summary.error_message and summary.newly_claimed_promotions:
-        status = "部分成功"
+        status = "Partial success"
     elif summary.error_message:
-        status = "失败"
+        status = "Failed"
     elif summary.unconfirmed_promotions:
-        status = "需确认"
+        status = "Needs confirmation"
     else:
-        status = "成功"
+        status = "Success"
 
-    sections = ["Epic 周免领取结果"]
+    sections = ["Epic free games claim results"]
 
     if account_label:
-        sections.extend(["", f"账号：{escape(account_label, quote=True)}"])
+        sections.extend(["", f"Account: {escape(account_label, quote=True)}"])
 
     sections.extend(
         [
             "",
-            f"运行状态：{status}",
+            f"Status: {status}",
             "",
-            "本周游戏：",
+            "This week's games:",
             _format_games(summary.all_promotions),
             "",
-            "本次新领取：",
+            "Newly claimed:",
             _format_games(summary.newly_claimed_promotions),
             "",
-            "之前已领取：",
+            "Previously claimed:",
             _format_games(summary.previously_claimed_promotions),
         ]
     )
 
     if summary.unconfirmed_promotions:
-        sections.extend(["", "未确认成功：", _format_games(summary.unconfirmed_promotions)])
+        sections.extend(["", "Unconfirmed:", _format_games(summary.unconfirmed_promotions)])
 
     if summary.failed_promotions:
-        sections.extend(["", "领取失败：", _format_games(summary.failed_promotions)])
+        sections.extend(["", "Failed to claim:", _format_games(summary.failed_promotions)])
 
     if summary.error_message:
         sections.extend(
-            ["", "失败原因：", escape(_format_error(summary.error_message), quote=True)]
+            ["", "Failure reason:", escape(_format_error(summary.error_message), quote=True)]
         )
 
     message = "\n".join(sections)
     if len(message) > 3900:
         message = message[:3850].rsplit("\n", 1)[0]
-        return message + "\n...(内容过长已截断)"
+        return message + "\n...(content too long, truncated)"
     return message
 
 

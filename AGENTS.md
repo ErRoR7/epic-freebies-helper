@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-Epic 免费人 (Epic Awesome Gamer) is a Python automation tool that gracefully claims weekly free games from the Epic Games Store. It uses browser automation with Playwright and includes an AI-powered hCaptcha solver using the `hcaptcha-challenger` library.
+Epic Awesome Gamer is a Python automation tool that gracefully claims weekly free games from the Epic Games Store. It uses browser automation with Playwright and solves hCaptcha challenges with tokens bought from NoneCap.
 
 ## Development Commands
 
@@ -31,7 +31,7 @@ uv run ruff check --fix
 ### Core Components
 
 - **`app/models.py`**: Pydantic models for Epic Games data structures (OrderItem, Order, PromotionGame)
-- **`app/settings.py`**: Configuration management using pydantic-settings, extends hcaptcha-challenger's AgentConfig
+- **`app/settings.py`**: Configuration management using pydantic-settings
 - **`app/services/epic_games_service.py`**: Main game collection logic and Epic Store interaction
 - **`app/services/epic_authorization_service.py`**: Authentication and login handling
 - **`app/jobs.py`**: Job orchestration functions for collecting and adding games to cart
@@ -39,7 +39,8 @@ uv run ruff check --fix
 
 ### Key Dependencies
 
-- **hcaptcha-challenger[camoufox]**: AI-powered captcha solving with Camoufox browser
+- **camoufox**: Anti-detect Firefox browser used by the automation
+- **httpx**: HTTP client, also used to call the NoneCap captcha-solving API
 - **playwright**: Browser automation framework
 - **pydantic-settings**: Configuration management with environment variable support
 - **apscheduler**: Task scheduling for automated runs
@@ -57,7 +58,7 @@ Environment variables are managed through `EpicSettings` class in `settings.py`:
 
 - `EPIC_EMAIL`: Epic Games account email (2FA must be disabled)
 - `EPIC_PASSWORD`: Epic Games account password
-- `GEMINI_API_KEY`: Google Gemini API key for captcha solving
+- `NONECAP_API_KEY`: NoneCap API key for hCaptcha solving
 - `CRON_SCHEDULE`: Cron expression for scheduled runs (default: every 5 hours)
 
 ### Browser Automation Flow
@@ -66,7 +67,7 @@ Environment variables are managed through `EpicSettings` class in `settings.py`:
 2. Handle authentication via `EpicAuthorization`
 3. Fetch promotions from Epic Games API
 4. Navigate to game pages and add free games to cart
-5. Handle any hCaptcha challenges using AI solver
+5. Handle any hCaptcha challenges using NoneCap tokens
 6. Complete checkout process
 
 ## Testing

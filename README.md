@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Epic Weekly Free Games Helper</h1>
-  <p>A fully free Epic weekly free-games claimer powered by GitHub Actions.</p>
+  <p>An Epic weekly free-games claimer powered by GitHub Actions.</p>
 
   <p>
     <a href="https://github.com/Ronchy2000/epic-freebies-helper/actions/workflows/epic-gamer.yml"><img src="https://img.shields.io/github/actions/workflow/status/Ronchy2000/epic-freebies-helper/epic-gamer.yml?branch=master&style=flat-square" alt="Workflow Status" /></a>
@@ -11,18 +11,11 @@
   </p>
 </div>
 
-[🇺🇸 English](README.md) | [🇨🇳 中文文档](README.zh.md)
-
 `Epic Weekly Free Games Helper` is built for regular users. It runs on GitHub Actions by default, so you do not need a server, a permanently running local machine, or any extra deployment. If you have a GitHub account, you can get started by following the setup steps below.
 
-The key point is simple: it is **fully free**. In the common setup, you do not need to pay for a server or keep a local machine online. GitHub Actions is enough to run the weekly claim flow automatically.
+The key point is simple: in the common setup, you do not need to pay for a server or keep a local machine online. GitHub Actions is enough to run the weekly claim flow automatically. Captcha solving uses [NoneCap](https://nonecap.com), which includes free starter credits when you sign up.
 
-The project is built upon community open-source solutions and incorporates `GLM` multimodal support. Its core objective is to ensure the stability of auto-login, captcha recognition, and checkout processes. Compared to Gemini, the GLM setup process is more straightforward, and its free quota is sufficient for regular automated execution.
-
-**If you choose the `GLM` route, make sure the related Zhipu account has already passed real-name verification, or the API may remain unavailable.**
-> 2026.4.28: Some users reported that the API can be called without real-name verification, so if you encounter unavailability, please check this setting.
-
-If you do not have a Zhipu account yet, you can register through this invite link: [BigModel.cn invite link](https://www.bigmodel.cn/invite?icode=A75tQCByIvrO4k6SLkU5BQZ3c5owLmCCcMQXWcJRS8E%3D).
+The project is built upon community open-source solutions. Its core objective is to ensure the stability of auto-login, captcha solving, and checkout processes. hCaptcha challenges are solved with tokens bought from NoneCap: the automation reads the sitekey from the live challenge, requests a solved token, and injects it into the page — no LLM or image recognition is involved.
 
 Community discussion and feedback are welcome on [LINUX DO](https://linux.do/t/topic/2036835/4).
 
@@ -46,15 +39,15 @@ If you run into an error, please feel free to open an [Issue](https://github.com
 
 ---
 
-## Why GLM Is Recommended
+## Captcha Solving with NoneCap
 
-The GLM path is primarily recommended for the following advantages:
+hCaptcha solving is token-based via [NoneCap](https://nonecap.com):
 
-- Less configuration: in most cases you only need `GLM_API_KEY` and `GLM_MODEL`.
-- Lower cost: the free quota of `glm-4.6v` is often enough for the weekly-claim use case.
-- More stable for this project: `glm-4.6v-flash` can occasionally fail under load with "the current model is too busy", so `glm-4.6v` is the safer default.
-- Better fit for users in China: you do not need to solve Google AI Studio registration or availability first.
-- Capability already validated: login captcha, checkout verification, drag, click, and multi-select challenges have all been verified in real runs.
+- Minimal configuration: a single `NONECAP_API_KEY` Secret is all the solver needs.
+- When a challenge appears, the automation submits the page's sitekey (and enterprise `rqdata` when present) to NoneCap and injects the returned token into the form.
+- Failed solves are not charged, and new accounts start with free credits.
+- Challenges that hCaptcha passes on its own (invisible, no interaction) are detected and treated as solved without spending a solve.
+- Without a `NONECAP_API_KEY`, visible challenges cannot be solved and the login will fail whenever Epic serves one.
 
 ---
 
@@ -62,7 +55,7 @@ The GLM path is primarily recommended for the following advantages:
 
 - Your Epic account email and password.
 - Disable Epic email/SMS 2FA. Authenticator-app 2FA is supported when `EPIC_TOTP_SECRET` is configured.
-- A GLM account with `GLM_API_KEY` prepared for captcha solving.
+- A NoneCap account with `NONECAP_API_KEY` prepared for captcha solving.
 
 ---
 
@@ -84,7 +77,7 @@ After forking, open the `Actions` page in your fork, enter `Epic Awesome Gamer (
 
 Go to `Settings` -> `Secrets and variables` -> `Actions`.
 
-Keep account credentials and API keys in `Secrets`. `LLM_PROVIDER` and all `*_MODEL` names are non-sensitive configuration and should be stored in `Variables`. The workflow reads Variables first while retaining fallback support for existing Secrets. Startup logs now print the effective model routing, including `SPATIAL_PATH_REASONER_MODEL`. GitHub masks any value that still exists as a Secret, so move the model name to Variables and remove the same-named Secret if you need the exact value to remain visible in logs.
+Keep account credentials and API keys in `Secrets`. The captcha solver needs a single `NONECAP_API_KEY` Secret; there are no model settings anymore.
 
 Required in all single-account setups (default path):
 
@@ -125,69 +118,19 @@ Optional settings:
 | `WXPUSH_TEMPLATE_ID` | Template ID | Overrides the wxpush default template; when absent, wxpush's `WX_TEMPLATE_ID` is used |
 | `WXPUSH_BASE_URL` | `https://example.com/skin` | Tap-through URL for the template message; when absent, the wxpush `/skin` page is used to view the full content |
 
-WXPush is independent from Telegram and both can be enabled at once. Because WeChat template title fields are limited (about 20 characters, no newlines), the WXPush title is a dense single-line summary carrying the key counts (for example `Epic 周免领取:新领2/共7款`, `Epic 周免领取:新领2 失败1` on partial failure, or `Epic 周免领取失败:<reason>` on total failure); the content carries the full plain-text game list (run status, weekly games, newly claimed games, and so on). WeChat native popups usually show only the first ~20 characters of the content — tap the template message to open the wxpush `/skin` page for the complete list. If your WeChat template's content field is a strict type, an over-long body can fail the whole send (logged only, never affecting the claim task); Telegram remains available for the full summary. WXPush delivery failures do not affect the claim task; when these settings are absent, the existing behavior is preserved.
+WXPush is independent from Telegram and both can be enabled at once. Because WeChat template title fields are limited (about 20 characters, no newlines), the WXPush title is a dense single-line summary carrying the key counts (for example `Epic:new2/7 total`, `Epic:new2 fail1` on partial failure, or `Epic failed:<reason>` on total failure); the content carries the full plain-text game list (run status, weekly games, newly claimed games, and so on). WeChat native popups usually show only the first ~20 characters of the content — tap the template message to open the wxpush `/skin` page for the complete list. If your WeChat template's content field is a strict type, an over-long body can fail the whole send (logged only, never affecting the claim task); Telegram remains available for the full summary. WXPush delivery failures do not affect the claim task; when these settings are absent, the existing behavior is preserved.
 
 If shared cloud IP reputation causes unusually difficult hCaptcha challenges, you may optionally add a `BROWSER_PROXY` Secret. Supported forms are `http://username:password@host:port`, `https://...`, `socks4://...`, and `socks5://...`. Without it, browser networking is unchanged. Proxy quality, trust, and cost remain the user's responsibility.
 
-If you use `GLM`, start with this set:
-
-**If you plan to use `GLM_API_KEY`, make sure the related Zhipu account has already passed real-name verification, or the API may remain unavailable.**
-**If you set `LLM_PROVIDER=glm`, you must provide `GLM_API_KEY`; there is no need to create or fill `GEMINI_API_KEY`.**
+For captcha solving, add the NoneCap key as a Secret:
 
 | Setting | Example value |
 | --- | --- |
-| `LLM_PROVIDER` | glm |
-| `GLM_API_KEY` | Your Zhipu API key |
-| `GLM_BASE_URL` | https://open.bigmodel.cn/api/paas/v4 |
-| `GLM_MODEL` | glm-4.6v |
+| `NONECAP_API_KEY` | Your NoneCap API key |
 
-Configuration page example:
-![GLM API setup](docs/images/tutorial/GLM-API.png)
+Get a key from the [NoneCap dashboard](https://dashboard.nonecap.com). New accounts include free starter credits, and failed solves are not charged.
 
 ![GitHub Actions Secrets example](docs/images/tutorial/step2-actions-secrets.png)
-
-If you use the `official Gemini API`, use this set:
-
-**If you set `LLM_PROVIDER=gemini`, you must provide `GEMINI_API_KEY`; there is no need to create or fill `GLM_API_KEY`.**
-
-| Setting | Example value |
-| --- | --- |
-| `LLM_PROVIDER` | gemini |
-| `GEMINI_API_KEY` | Your Gemini API key |
-| `GEMINI_BASE_URL` | leave empty |
-| `GEMINI_MODEL` | gemini-2.5-pro |
-
-If you use a Gemini-compatible relay such as `AiHubMix`, use this set:
-
-| Setting | Example value |
-| --- | --- |
-| `LLM_PROVIDER` | gemini |
-| `GEMINI_API_KEY` | Your AiHubMix key |
-| `GEMINI_BASE_URL` | https://aihubmix.com |
-| `GEMINI_MODEL` | gemini-2.5-pro |
-
-Notes:
-
-- The current codebase supports both the `official Gemini API` and Gemini-compatible relays such as `AiHubMix`.
-- The variable name is `GEMINI_BASE_URL`, not `GEMINI_BASE_MODEL`.
-- When `LLM_PROVIDER=glm`, fill `GLM_API_KEY`; there is no need to create or fill `GEMINI_API_KEY`.
-- When `LLM_PROVIDER=gemini`, fill `GEMINI_API_KEY`; there is no need to create or fill `GLM_API_KEY`.
-- When you use the `official Gemini API`, leave `GEMINI_BASE_URL` empty so the SDK uses Google's default endpoint.
-- Only set `GEMINI_BASE_URL` when you use `AiHubMix` or another Gemini-compatible relay.
-- For `GLM`, `glm-4.6v` is the recommended starting value; `glm-4.6v-flash` can fail during peak traffic.
-- For `Gemini` / `AiHubMix`, `GEMINI_MODEL=gemini-2.5-pro` is the recommended starting value.
-- If `CHALLENGE_CLASSIFIER_MODEL`, `IMAGE_CLASSIFIER_MODEL`, `SPATIAL_POINT_REASONER_MODEL`, and `SPATIAL_PATH_REASONER_MODEL` are left empty, they automatically follow the active provider default, meaning `GLM_MODEL` or `GEMINI_MODEL`.
-- If you do not want to split models by task yet, leave all four override fields empty.
-- The `GLM` path does not require an extra `GEMINI_API_KEY`.
-
-If you do want to override those four model fields explicitly, use values like these:
-
-| Setting | GLM example | Gemini / AiHubMix example |
-| --- | --- | --- |
-| `CHALLENGE_CLASSIFIER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
-| `IMAGE_CLASSIFIER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
-| `SPATIAL_POINT_REASONER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
-| `SPATIAL_PATH_REASONER_MODEL` | empty or `glm-4.6v` | empty or `gemini-2.5-pro` |
 
 ### Multi-account support (optional)
 
@@ -295,7 +238,7 @@ If you need to open an issue, do not paste only a short log excerpt.
 If you want to reproduce the same entrypoint locally, use the repository's built-in one-shot run path:
 
 1. Copy [`.env.example`](.env.example) to `.env`
-2. Fill in your own account and model configuration
+2. Fill in your own account and NoneCap configuration
 3. Run `uv sync --group dev`
 4. Run `ENABLE_APSCHEDULER=false uv run app/deploy.py`
 
@@ -314,7 +257,7 @@ If you want to reproduce the same entrypoint locally, use the repository's built
 
 ### 2. Logs mention `privacy-policy correction` or the run gets stuck on a privacy-policy page
 
-This is usually not a model-provider issue. It is an Epic account state issue. Some accounts are redirected after login to a page like `/id/login/correction/privacy-policy`, which requires a one-time privacy-policy confirmation.
+This is usually not a captcha-solver issue. It is an Epic account state issue. Some accounts are redirected after login to a page like `/id/login/correction/privacy-policy`, which requires a one-time privacy-policy confirmation.
 
 The fix is simple: sign in to Epic once in a normal browser, complete that confirmation page manually, and then rerun the workflow.
 
@@ -382,34 +325,11 @@ cd epic-freebies-helper
 
 The main entry is [`docker/docker-compose.yaml`](docker/docker-compose.yaml).
 
-GLM example:
+NoneCap example:
 
 ```yaml
 environment:
-  - LLM_PROVIDER=glm
-  - GLM_API_KEY=your_glm_key
-  - GLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-  - GLM_MODEL=glm-4.6v
-```
-
-Official Gemini API example:
-
-```yaml
-environment:
-  - LLM_PROVIDER=gemini
-  - GEMINI_API_KEY=your_gemini_key
-  - GEMINI_BASE_URL=
-  - GEMINI_MODEL=gemini-2.5-pro
-```
-
-AiHubMix example:
-
-```yaml
-environment:
-  - LLM_PROVIDER=gemini
-  - GEMINI_API_KEY=your_key
-  - GEMINI_BASE_URL=https://aihubmix.com
-  - GEMINI_MODEL=gemini-2.5-pro
+  - NONECAP_API_KEY=your_nonecap_key
 ```
 
 ### 3. Start the stack

@@ -2,7 +2,7 @@
 # Time       : 2022/1/16 0:25
 # Author     : QIN2DIM
 # GitHub     : https://github.com/QIN2DIM
-# Description: 游戏商城控制句柄
+# Description: Epic Games Store control handler
 
 import asyncio
 import json
@@ -13,8 +13,7 @@ from json import JSONDecodeError
 from typing import List
 
 import httpx
-from hcaptcha_challenger.agent import AgentV
-from hcaptcha_challenger.models import ChallengeSignal
+from extensions.captcha_agent import CaptchaAgent, ChallengeSignal
 from loguru import logger
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Frame, Page
@@ -71,7 +70,7 @@ class EpicFreeGameRateLimitError(RuntimeError):
 
 
 def get_promotions() -> List[PromotionGame]:
-    """获取周免游戏数据"""
+    """Fetch the weekly free games data"""
 
     def is_discount_game(prot: dict) -> bool | None:
         with suppress(KeyError, IndexError, TypeError):
@@ -101,13 +100,13 @@ def get_promotions() -> List[PromotionGame]:
             continue
 
         # -----------------------------------------------------------
-        # 🟢 智能 URL 识别逻辑
+        # 🟢 Smart URL recognition logic
         # -----------------------------------------------------------
         is_bundle = False
         if e.get("offerType") == "BUNDLE":
             is_bundle = True
 
-        # 补充检测：分类和标题
+        # Additional checks: category and title
         if not is_bundle:
             for cat in e.get("categories", []):
                 if "bundle" in cat.get("path", "").lower():
@@ -1328,7 +1327,7 @@ class EpicGames:
         )
 
     async def _resolve_checkout_security_check(
-        self, page: Page, agent: AgentV, url: str, max_wait_ms: int = 600000
+        self, page: Page, agent: CaptchaAgent, url: str, max_wait_ms: int = 600000
     ) -> bool:
         await self._raise_if_free_game_rate_limited(page, url)
         if not await self._is_checkout_security_check_visible(page):
@@ -1442,7 +1441,7 @@ class EpicGames:
         await self._capture_purchase_debug(page, "checkout_security_check_unresolved", url)
         return False
 
-    async def _probe_checkout_challenge(self, page: Page, agent: AgentV, url: str) -> bool:
+    async def _probe_checkout_challenge(self, page: Page, agent: CaptchaAgent, url: str) -> bool:
         logger.debug(f"Probing checkout for latent challenge. {url=}")
         if await self._is_checkout_security_check_visible(page):
             logger.debug(f"Checkout challenge probe found visible challenge before waiting. {url=}")
@@ -1469,7 +1468,7 @@ class EpicGames:
         return True
 
     async def _extended_checkout_challenge_probe(
-        self, page: Page, agent: AgentV, url: str, timeout_seconds: int = 90
+        self, page: Page, agent: CaptchaAgent, url: str, timeout_seconds: int = 90
     ) -> bool:
         logger.warning(
             "Checkout remained on Place Order after repeated attempts - running extended challenge probe. {}",
@@ -1753,7 +1752,7 @@ class EpicGames:
     ) -> bool:
         url = promotion.url
         logger.info("🚀 Triggering Instant Checkout Flow...")
-        agent = AgentV(page=page, agent_config=settings)
+        agent = CaptchaAgent(page=page, agent_config=settings)
         deadline = time.monotonic() + max(timeout_ms, 0) / 1000
 
         def remaining_ms(limit_ms: int) -> int:
@@ -1934,14 +1933,14 @@ class EpicGames:
                 failed_urls.append(url)
                 continue
 
-            # 404 检测
+            # 404 detection
             title = await page.title()
             if "404" in title or "Page Not Found" in title:
                 logger.error(f"❌ Invalid URL (404 Page): {url}")
                 failed_urls.append(url)
                 continue
 
-            # 处理年龄限制弹窗
+            # Handle the age-restriction dialog
             try:
                 continue_btn = page.locator("//button//span[text()='Continue']")
                 if await continue_btn.is_visible():
@@ -1950,17 +1949,17 @@ class EpicGames:
                 pass
 
             # ------------------------------------------------------------
-            # 🔥 新思路：彻底解决按钮识别问题 (黑名单机制 + 智能点击)
+            # 🔥 New approach: solve button recognition for good (blocklist + smart click)
             # ------------------------------------------------------------
 
-            # 1. 尝试找到所有可能的“主按钮”
-            # Epic 按钮通常有 'purchase-cta-button' 这个 TestID
+            # 1. Try to find every possible primary button
+            # Epic buttons usually carry the 'purchase-cta-button' TestID
             purchase_btn = page.locator("//button[@data-testid='purchase-cta-button']").first
 
-            # 2. 如果没找到主按钮，尝试找“库中”状态
+            # 2. If no primary button is found, look for the in-library state
             try:
                 if not await purchase_btn.is_visible():
-                    # 再次检查是否在库中 (有时按钮不叫 purchase-cta，而是简单的 disabled button)
+                    # Check the library state again (sometimes the button is not purchase-cta, just a disabled button)
                     all_text = (await page.locator("body").text_content() or "").upper()
                     if any(marker in all_text for marker in owned_markers):
                         logger.success(
@@ -1975,7 +1974,7 @@ class EpicGames:
             except Exception:
                 pass
 
-            # 3. 获取按钮上下文
+            # 3. Get the button context
             btn_text, container_text, disabled, aria_disabled = (
                 await self._log_purchase_button_context(page, purchase_btn, url)
             )
@@ -1984,8 +1983,8 @@ class EpicGames:
 
             logger.debug(f"👉 Found Button: '{btn_text}'")
 
-            # 4. 黑名单检查：只有这些情况绝对不能点
-            # 如果是 'IN LIBRARY', 'OWNED', 'UNAVAILABLE', 'COMING SOON' -> 跳过
+            # 4. Blocklist check: these states must never be clicked
+            # If it is 'IN LIBRARY', 'OWNED', 'UNAVAILABLE', or 'COMING SOON' -> skip
             if disabled is not None or aria_disabled == "true":
                 logger.success(
                     "Game already claimed / unavailable (purchase button disabled) - "
@@ -2002,8 +2001,8 @@ class EpicGames:
                 )
                 continue
 
-            # 5. 白名单检查 (Add to Cart 特殊处理)
-            # 如果包含 'CART'，说明是加入购物车流程
+            # 5. Allowlist check (special handling for Add to Cart)
+            # If it contains 'CART', this is the add-to-cart flow
             if "CART" in btn_text_upper:
                 logger.debug(f"🛒 Logic: Add To Cart - {url=}")
                 if not await self._click_purchase_button(page, purchase_btn, url):
@@ -2012,9 +2011,9 @@ class EpicGames:
                 has_pending_cart_items = True
                 continue
 
-            # 6. 默认处理 (盲点逻辑)
-            # 只要不是黑名单，也不是购物车，统统当做 "Get/Purchase" 直接点击！
-            # 不管它写的是 'Get', 'Free', 'Purchase', 'Buy Now'，只要 API 说是免费的，我们就点！
+            # 6. Default handling (blind-click logic)
+            # Anything that is neither blocklisted nor cart-related is treated as a "Get/Purchase" button and clicked directly!
+            # Whether it says 'Get', 'Free', 'Purchase', or 'Buy Now' — if the API says the game is free, click it!
             logger.debug(f"⚡️ Logic: Aggressive Click (Text: {btn_text}) - {url=}")
             if await EpicGames._is_device_not_supported_visible(page):
                 logger.warning(
@@ -2028,7 +2027,7 @@ class EpicGames:
 
             await self._handle_device_not_supported_modal(page, url)
 
-            # 点击后，转入即时结账流程
+            # After the click, move into the instant checkout flow
             if await self._handle_instant_checkout(page, promotion):
                 instant_claimed += 1
             else:
@@ -2068,7 +2067,7 @@ class EpicGames:
                 logger.debug("Move ALL paid games from the shopping cart out")
                 await self._empty_cart(self.page)
 
-                agent = AgentV(page=self.page, agent_config=settings)
+                agent = CaptchaAgent(page=self.page, agent_config=settings)
                 await self.page.click("//button//span[text()='Check Out']")
                 await self._agree_license(self.page)
 

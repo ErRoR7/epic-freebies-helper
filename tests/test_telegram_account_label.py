@@ -125,9 +125,9 @@ def _sample_summary():
 
 def test_single_account_telegram_message_omits_account_label_by_default():
     message = telegram.build_telegram_summary_message(_sample_summary())
-    assert message.startswith("Epic 周免领取结果")
-    assert "账号：" not in message
-    assert "运行状态：成功" in message
+    assert message.startswith("Epic free games claim results")
+    assert "Account: " not in message
+    assert "Status: Success" in message
     assert "Demo Game" in message
 
 
@@ -136,6 +136,6 @@ def test_multi_account_telegram_message_includes_masked_account_label():
         _sample_summary(),
         account_label="ab***@example.com",
     )
-    assert "Epic 周免领取结果" in message
-    assert "账号：ab***@example.com" in message
-    assert message.index("账号：") < message.index("运行状态：")
+    assert "Epic free games claim results" in message
+    assert "Account: ab***@example.com" in message
+    assert message.index("Account: ") < message.index("Status: ")

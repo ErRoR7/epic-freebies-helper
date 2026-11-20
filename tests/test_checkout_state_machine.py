@@ -328,7 +328,7 @@ def test_rate_limit_error_is_not_swallowed_by_checkout_fallback(monkeypatch):
     async def unexpected_finalize(*args, **kwargs):
         pytest.fail("rate limiting must not enter final reconciliation")
 
-    monkeypatch.setattr(epic_games_service, "AgentV", lambda **kwargs: object())
+    monkeypatch.setattr(epic_games_service, "CaptchaAgent", lambda **kwargs: object())
     monkeypatch.setattr(game, "_wait_for_purchase_state", rate_limited)
     monkeypatch.setattr(game, "_finalize_unconfirmed_checkout", unexpected_finalize)
 
@@ -448,7 +448,7 @@ def test_security_recovery_does_not_consume_submission_attempts(monkeypatch):
     async def unexpected_finalize(*args, **kwargs):
         pytest.fail("successful fourth submission must not enter final reconciliation")
 
-    monkeypatch.setattr(epic_games_service, "AgentV", lambda **kwargs: object())
+    monkeypatch.setattr(epic_games_service, "CaptchaAgent", lambda **kwargs: object())
     monkeypatch.setattr(game, "_wait_for_purchase_state", next_state)
     monkeypatch.setattr(game, "_submit_place_order", submit)
     monkeypatch.setattr(game, "_is_checkout_security_check_visible", security_not_visible)
@@ -502,7 +502,7 @@ def test_initial_security_state_refreshes_checkout_before_submission(monkeypatch
     async def claimed_outcome(*args, **kwargs):
         return "claimed"
 
-    monkeypatch.setattr(epic_games_service, "AgentV", lambda **kwargs: object())
+    monkeypatch.setattr(epic_games_service, "CaptchaAgent", lambda **kwargs: object())
     monkeypatch.setattr(game, "_wait_for_purchase_state", next_state)
     monkeypatch.setattr(game, "_resolve_checkout_security_check", resolve_security)
     monkeypatch.setattr(game, "_submit_place_order", submit)

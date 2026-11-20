@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
 
-from hcaptcha_challenger.agent import AgentV
-from hcaptcha_challenger.models import ChallengeSignal
 from loguru import logger
+
+from extensions.captcha_agent import CaptchaAgent, ChallengeSignal
 
 
 async def wait_for_challenge_signal(
-    agent: AgentV, *, context: str, timeout_seconds: float
+    agent: CaptchaAgent, *, context: str, timeout_seconds: float
 ) -> ChallengeSignal:
     try:
         signal = await asyncio.wait_for(agent.wait_for_challenge(), timeout=timeout_seconds)

@@ -118,50 +118,50 @@ def _summary(all_count=0, newly=0, previously=0, unconfirmed=0, failed=0, error=
 
 
 def test_title_all_claimed_shape():
-    assert wxpush.build_wxpush_title(_summary(all_count=7, newly=2)) == "Epic 周免领取:新领2/共7款"
+    assert wxpush.build_wxpush_title(_summary(all_count=7, newly=2)) == "Epic:new2/7 total"
 
 
 def test_title_all_owned_already_shape():
     assert (
         wxpush.build_wxpush_title(_summary(all_count=7, previously=7))
-        == "Epic 周免领取:均已有/共7款"
+        == "Epic:owned/7 total"
     )
 
 
 def test_title_empty_week_shape():
-    assert wxpush.build_wxpush_title(_summary()) == "Epic 周免领取:共0款"
+    assert wxpush.build_wxpush_title(_summary()) == "Epic:0 total"
 
 
 def test_title_partial_failure_shape():
     assert (
         wxpush.build_wxpush_title(_summary(all_count=7, newly=2, failed=1, error="boom"))
-        == "Epic 周免领取:新领2 失败1"
+        == "Epic:new2 fail1"
     )
 
 
 def test_title_partial_without_counts_shape():
     assert (
         wxpush.build_wxpush_title(_summary(all_count=7, newly=2, error="boom"))
-        == "Epic 周免领取:新领2 部分成功"
+        == "Epic:new2 partial"
     )
 
 
 def test_title_needs_confirmation_shape():
     assert (
         wxpush.build_wxpush_title(_summary(all_count=7, newly=2, unconfirmed=1))
-        == "Epic 周免领取:新领2 待确认1"
+        == "Epic:new2 pending1"
     )
 
 
 def test_title_total_failure_shape():
     assert (
-        wxpush.build_wxpush_title(_summary(all_count=3, error="boom")) == "Epic 周免领取失败:boom"
+        wxpush.build_wxpush_title(_summary(all_count=3, error="boom")) == "Epic failed:boom"
     )
 
 
 def test_title_failure_uses_first_error_line():
-    title = wxpush.build_wxpush_title(_summary(all_count=3, error="第一行\n\n第二行"))
-    assert title == "Epic 周免领取失败:第一行"
+    title = wxpush.build_wxpush_title(_summary(all_count=3, error="First line\n\nSecond line"))
+    assert title == "Epic failed:First li"
 
 
 def test_title_is_single_line_and_hard_clipped():
@@ -180,42 +180,42 @@ def test_title_is_single_line_and_hard_clipped():
 
 def test_content_single_account_omits_account_label_by_default():
     content = wxpush.build_wxpush_content(_summary(all_count=7, newly=2))
-    assert "账号：" not in content
-    assert "运行状态：成功" in content
-    assert "本周游戏：" in content
-    assert "本次新领取：" in content
-    assert "之前已领取：\n无" in content
+    assert "Account: " not in content
+    assert "Status: Success" in content
+    assert "This week's games:" in content
+    assert "Newly claimed:" in content
+    assert "Previously claimed:\nNone" in content
 
 
 def test_content_multi_account_includes_masked_account_label():
     content = wxpush.build_wxpush_content(
         _summary(all_count=7, newly=2), account_label="ab***@example.com"
     )
-    assert "账号：ab***@example.com" in content
-    assert content.index("账号：") < content.index("运行状态：")
+    assert "Account: ab***@example.com" in content
+    assert content.index("Account: ") < content.index("Status: ")
 
 
 def test_content_lists_game_titles():
     summary = _summary(all_count=2, newly=1)
-    summary.all_promotions = [_game("双人成行"), _game("暗黑破坏神4")]
-    summary.newly_claimed_promotions = [_game("暗黑破坏神4")]
+    summary.all_promotions = [_game("It Takes Two"), _game("Diablo IV")]
+    summary.newly_claimed_promotions = [_game("Diablo IV")]
     content = wxpush.build_wxpush_content(summary)
-    assert "- 双人成行" in content
-    assert "- 暗黑破坏神4" in content
+    assert "- It Takes Two" in content
+    assert "- Diablo IV" in content
 
 
 def test_content_conditional_sections_and_error_reason():
     content = wxpush.build_wxpush_content(
         _summary(all_count=5, newly=1, unconfirmed=1, failed=1, error="boom")
     )
-    assert "未确认成功：" in content
-    assert "领取失败：" in content
-    assert "失败原因：boom" in content
+    assert "Unconfirmed:" in content
+    assert "Failed to claim:" in content
+    assert "Failure reason: boom" in content
 
 
 def test_content_truncates_at_safe_size():
     content = wxpush.build_wxpush_content(_summary(all_count=300, newly=200))
-    assert content.endswith("...(内容已截断)")
+    assert content.endswith("...(truncated)")
     assert len(content) <= wxpush.CONTENT_MAX_CHARS
 
 

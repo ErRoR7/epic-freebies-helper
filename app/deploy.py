@@ -123,7 +123,7 @@ async def _deliver_collection_summary(summary, *, account_label: str | None = No
 async def execute_browser_tasks_with_notification(
     headless: bool | str = True, *, account_label: str | None = None
 ) -> str | None:
-    if configuration_error := settings.llm_configuration_error:
+    if configuration_error := settings.captcha_configuration_error:
         logger.error(configuration_error)
         raise RuntimeError(configuration_error)
 
@@ -278,13 +278,8 @@ async def deploy():
         f"Starting deployment with configuration: {json.dumps(sj, indent=2, ensure_ascii=False)}"
     )
     logger.info(
-        "Effective LLM model routing | provider={} | challenge_classifier={} | "
-        "image_classifier={} | spatial_point_reasoner={} | spatial_path_reasoner={}",
-        settings.LLM_PROVIDER,
-        settings.CHALLENGE_CLASSIFIER_MODEL,
-        settings.IMAGE_CLASSIFIER_MODEL,
-        settings.SPATIAL_POINT_REASONER_MODEL,
-        settings.SPATIAL_PATH_REASONER_MODEL,
+        "Captcha solver | provider=nonecap | api_key_configured={}",
+        settings.NONECAP_API_KEY is not None,
     )
 
     # Execute an immediate collection task (single- or multi-account)

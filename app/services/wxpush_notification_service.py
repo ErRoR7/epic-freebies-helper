@@ -7,7 +7,7 @@ Delivers the Epic claim summary to a self-hosted wxpush deployment
 
 WeChat caps template-message title fields at roughly 20 characters per field
 without newlines, so the title carries a dense single-line result summary
-(e.g. ``Epic 周免领取:新领2/共7款``). The content carries the full game list:
+(e.g. ``Epic:new2/7 total``). The content carries the full game list:
 WeChat shows only its beginning in the native popup, and the complete message
 is rendered on the wxpush ``/skin`` page when the template message is tapped.
 
@@ -64,12 +64,12 @@ def _default_skin_base_url() -> str:
 
 def _claim_status(summary: CollectionSummary) -> str:
     if summary.error_message and summary.newly_claimed_promotions:
-        return "部分成功"
+        return "Partial success"
     if summary.error_message:
-        return "失败"
+        return "Failed"
     if summary.unconfirmed_promotions:
-        return "需确认"
-    return "成功"
+        return "Needs confirmation"
+    return "Success"
 
 
 def _clip_field(text: str, max_chars: int) -> str:
@@ -86,7 +86,7 @@ def _first_error_line(error: str) -> str:
 
 def _format_games(games) -> str:
     if not games:
-        return "无"
+        return "None"
     return "\n".join(f"- {game.title or game.url or 'Unknown'}" for game in games)
 
 
@@ -95,39 +95,39 @@ def build_wxpush_title(summary: CollectionSummary) -> str:
     Dense single-line title, hard-clipped to the WeChat field limit.
 
     Shapes:
-    - all claimed:            ``Epic 周免领取:新领2/共7款``
-    - all owned already:      ``Epic 周免领取:均已有/共7款``
-    - partial / unconfirmed:  ``Epic 周免领取:新领2 失败1`` / ``...新领2 待确认1``
-    - total failure:          ``Epic 周免领取失败:密码错误...``
+    - all claimed:            ``Epic:new2/7 total``
+    - all owned already:      ``Epic:owned/7 total``
+    - partial / unconfirmed:  ``Epic:new2 fail1`` / ``...new2 pending1``
+    - total failure:          ``Epic failed:password error...``
     """
     status = _claim_status(summary)
-    prefix = "Epic 周免领取"
+    prefix = "Epic"
     n_all = len(summary.all_promotions)
     n_new = len(summary.newly_claimed_promotions)
     n_failed = len(summary.failed_promotions)
     n_unconfirmed = len(summary.unconfirmed_promotions)
 
-    if status == "失败":
-        reason = _first_error_line(summary.error_message) or "未知原因"
-        return _clip_field(f"{prefix}失败:{reason}", TITLE_FIELD_MAX_CHARS)
+    if status == "Failed":
+        reason = _first_error_line(summary.error_message) or "unknown reason"
+        return _clip_field(f"{prefix} failed:{reason}", TITLE_FIELD_MAX_CHARS)
 
     segments = []
     if n_new:
-        segments.append(f"新领{n_new}")
-    elif n_all and status == "成功":
-        segments.append("均已有")
+        segments.append(f"new{n_new}")
+    elif n_all and status == "Success":
+        segments.append("owned")
     if n_failed:
-        segments.append(f"失败{n_failed}")
+        segments.append(f"fail{n_failed}")
     if n_unconfirmed:
-        segments.append(f"待确认{n_unconfirmed}")
-    if status == "部分成功" and not n_failed and not n_unconfirmed:
-        segments.append("部分成功")
+        segments.append(f"pending{n_unconfirmed}")
+    if status == "Partial success" and not n_failed and not n_unconfirmed:
+        segments.append("partial")
 
     tail = ""
     if not segments:
-        segments.append(f"共{n_all}款")
-    elif not n_failed and not n_unconfirmed and status != "部分成功":
-        tail = f"/共{n_all}款"
+        segments.append(f"{n_all} total")
+    elif not n_failed and not n_unconfirmed and status != "Partial success":
+        tail = f"/{n_all} total"
 
     return _clip_field(f"{prefix}:{' '.join(segments)}{tail}", TITLE_FIELD_MAX_CHARS)
 
@@ -136,27 +136,27 @@ def build_wxpush_content(summary: CollectionSummary, *, account_label: str | Non
     """Full plain-text run report (markdown-lite), truncated at a safe size."""
     lines = []
     if account_label:
-        lines.append(f"账号：{account_label}")
-    lines.append(f"运行状态：{_claim_status(summary)}")
+        lines.append(f"Account: {account_label}")
+    lines.append(f"Status: {_claim_status(summary)}")
 
     sections = (
-        ("本周游戏", summary.all_promotions),
-        ("本次新领取", summary.newly_claimed_promotions),
-        ("之前已领取", summary.previously_claimed_promotions),
+        ("This week's games", summary.all_promotions),
+        ("Newly claimed", summary.newly_claimed_promotions),
+        ("Previously claimed", summary.previously_claimed_promotions),
     )
     for heading, games in sections:
-        lines.extend([f"{heading}：", _format_games(games)])
+        lines.extend([f"{heading}:", _format_games(games)])
     if summary.unconfirmed_promotions:
-        lines.extend(["未确认成功：", _format_games(summary.unconfirmed_promotions)])
+        lines.extend(["Unconfirmed:", _format_games(summary.unconfirmed_promotions)])
     if summary.failed_promotions:
-        lines.extend(["领取失败：", _format_games(summary.failed_promotions)])
+        lines.extend(["Failed to claim:", _format_games(summary.failed_promotions)])
     if summary.error_message:
-        lines.append(f"失败原因：{_first_error_line(summary.error_message)}")
+        lines.append(f"Failure reason: {_first_error_line(summary.error_message)}")
 
     message = "\n".join(lines)
     if len(message) > CONTENT_MAX_CHARS:
-        keep = CONTENT_MAX_CHARS - len("...(内容已截断)")
-        message = message[:keep].rsplit("\n", 1)[0] + "\n...(内容已截断)"
+        keep = CONTENT_MAX_CHARS - len("...(truncated)")
+        message = message[:keep].rsplit("\n", 1)[0] + "\n...(truncated)"
     return message
 
 
