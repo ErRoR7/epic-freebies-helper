@@ -24,9 +24,9 @@ from loguru import logger
 from playwright.async_api import Page
 
 from extensions.nonecap_solver import (
+    deliver_hcaptcha_token,
     extract_hcaptcha_params,
     fetch_nonecap_token,
-    inject_hcaptcha_token,
 )
 
 
@@ -129,6 +129,11 @@ class CaptchaAgent:
         with suppress(Exception):
             user_agent = await self.page.evaluate("() => navigator.userAgent")
 
+        proxy = None
+        proxy_secret = getattr(self.config, "NONECAP_PROXY", None)
+        if proxy_secret is not None:
+            proxy = proxy_secret.get_secret_value().strip() or None
+
         remaining = deadline - time.monotonic()
         token = await fetch_nonecap_token(
             api_key=self.config.NONECAP_API_KEY.get_secret_value(),
@@ -139,13 +144,34 @@ class CaptchaAgent:
             timeout_seconds=min(
                 float(self.config.NONECAP_TIMEOUT_SECONDS), max(10.0, remaining - 20.0)
             ),
+            proxy=proxy,
         )
         if not token:
             return ChallengeSignal.FAILURE
 
-        if not await inject_hcaptcha_token(self.page, token):
-            logger.warning("NoneCap solve failed: no h-captcha-response field to inject")
+        fields, callback_kind = await deliver_hcaptcha_token(self.page, token)
+        if not fields and callback_kind is None:
+            logger.warning("NoneCap solve failed: no response field or callback on page")
             return ChallengeSignal.FAILURE
+
+        if callback_kind is not None:
+            # The token reached the app through its own verify handler, which
+            # owns submission from here — clicking sign-in again could reset
+            # the flow. Give the widget a short grace period to close, then
+            # report success either way and let the caller's outcome watcher
+            # judge whether the app actually proceeded.
+            logger.success("NoneCap token delivered via page callback | via={}", callback_kind)
+            grace_deadline = min(deadline, time.monotonic() + 10.0)
+            while time.monotonic() < grace_deadline:
+                if not await self._challenge_visible():
+                    logger.success("NoneCap token solve cleared the hCaptcha challenge")
+                    return ChallengeSignal.SUCCESS
+                await self.page.wait_for_timeout(500)
+            logger.info(
+                "Challenge still visible after callback delivery; "
+                "deferring to the caller's outcome watcher"
+            )
+            return ChallengeSignal.SUCCESS
 
         if self._after_inject is not None:
             with suppress(Exception):

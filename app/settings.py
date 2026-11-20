@@ -45,6 +45,11 @@ class EpicSettings(BaseSettings):
         default=None, description="NoneCap API key; required to solve hCaptcha challenges"
     )
     NONECAP_TIMEOUT_SECONDS: float = Field(default=110.0, gt=10.0, le=300.0)
+    NONECAP_PROXY: SecretStr | None = Field(
+        default=None,
+        description="Optional proxy for NoneCap solves; set it to the same egress as "
+        "BROWSER_PROXY so solved tokens originate from the browser session's IP",
+    )
 
     # hCaptcha runtime limits, consumed by CaptchaAgent.wait_for_challenge.
     EXECUTION_TIMEOUT: float = Field(

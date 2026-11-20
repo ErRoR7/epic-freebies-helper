@@ -4,8 +4,9 @@
 When a NONECAP_API_KEY is configured, the captcha agent can clear a visible
 hCaptcha without interacting with it: read the sitekey (and enterprise
 rqdata, when present) from the live hCaptcha frame, buy a solved token from
-NoneCap, and inject it into the page's h-captcha-response fields. Epic's own
-form submission then verifies the token server-side.
+NoneCap, and deliver it to the page — into the h-captcha-response fields AND
+through the widget's own verify callback, which is what framework-driven
+forms (Epic's React login included) actually listen to.
 
 Epic's hCaptcha deployment is the enterprise variant, so solves are
 submitted as ``hcaptcha_enterprise`` (rqdata is optional and only sent when
@@ -79,6 +80,7 @@ async def fetch_nonecap_token(
     rqdata: str | None,
     user_agent: str | None,
     timeout_seconds: float,
+    proxy: str | None = None,
 ) -> str | None:
     """Submit an hCaptcha solve to NoneCap and long-poll until it resolves."""
     payload: dict = {"type": "hcaptcha_enterprise", "sitekey": sitekey, "url": page_url}
@@ -86,6 +88,10 @@ async def fetch_nonecap_token(
         payload["rqdata"] = rqdata
     if user_agent:
         payload["user_agent"] = user_agent
+    if proxy:
+        # Solve through the same egress the browser uses (pair with
+        # BROWSER_PROXY) so the token's origin matches the session's.
+        payload["proxy"] = proxy
 
     headers = {"Authorization": f"Bearer {api_key}"}
     deadline = asyncio.get_running_loop().time() + timeout_seconds
@@ -159,32 +165,149 @@ async def fetch_nonecap_token(
                 return None
 
 
-async def inject_hcaptcha_token(page: Page, token: str) -> int:
-    """Write the token into every h-captcha-response field on the page.
+async def deliver_hcaptcha_token(page: Page, token: str) -> tuple[int, str | None]:
+    """Deliver a solved token to the page the way a real verification would.
 
-    Returns the number of fields populated (0 means the page exposes no
-    response field to inject into).
+    Writing the token into the h-captcha-response fields is not enough on
+    framework-driven login forms (Epic's included): the app tracks captcha
+    state through the widget's verify callback, so a bare field write leaves
+    the app believing no verification happened — it re-opens the widget on
+    submit and never posts the login. This therefore also hunts down the
+    page's verify callback and invokes it with the token, in order:
+
+    1. an explicit ``data-callback`` global named on the widget element,
+    2. a React ``onVerify`` prop on the widget component (fiber walk),
+    3. a callback registered in the hCaptcha API's internal client table.
+
+    Returns (fields_populated, callback_kind) where callback_kind is None
+    when no callback could be invoked.
     """
     try:
-        count = await page.evaluate(
+        result = await page.evaluate(
             """
             (token) => {
-              const fields = document.querySelectorAll(
-                'textarea[name="h-captcha-response"], textarea[name="g-recaptcha-response"]'
+              const result = { fields: 0, callback: null, detail: '' };
+              const note = (msg) => { result.detail = (result.detail + ' ' + msg).trim(); };
+
+              // 1) Populate the response fields via the native setter and
+              //    real events, so framework value tracking notices.
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLTextAreaElement.prototype, 'value'
               );
-              let populated = 0;
-              fields.forEach((el) => {
-                el.value = token;
-                el.innerHTML = token;
-                populated += 1;
+              document.querySelectorAll(
+                'textarea[name="h-captcha-response"], textarea[name="g-recaptcha-response"]'
+              ).forEach((el) => {
+                try {
+                  if (setter && setter.set) setter.set.call(el, token);
+                  else el.value = token;
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                  el.dispatchEvent(new Event('change', { bubbles: true }));
+                  result.fields += 1;
+                } catch (e) { note('field:' + e); }
               });
-              return populated;
+
+              const iframe = document.querySelector('iframe[data-hcaptcha-widget-id]');
+              const sitekeyEl = document.querySelector('[data-sitekey]');
+              const anchor = (iframe && (iframe.closest('div') || iframe.parentElement))
+                || sitekeyEl || (iframe && iframe.parentElement) || null;
+
+              // 2) Explicit data-callback global.
+              const cbHost = document.querySelector('[data-callback]') || anchor;
+              const cbName = cbHost && cbHost.getAttribute
+                ? cbHost.getAttribute('data-callback') : null;
+              if (cbName && typeof window[cbName] === 'function') {
+                try {
+                  window[cbName](token);
+                  result.callback = 'data-callback';
+                  return result;
+                } catch (e) { note('data-callback:' + e); }
+              }
+
+              // 3) React fiber walk looking for an onVerify prop.
+              const startNodes = [];
+              if (anchor) startNodes.push(anchor);
+              if (iframe && iframe.parentElement) startNodes.push(iframe.parentElement);
+              if (sitekeyEl) startNodes.push(sitekeyEl);
+              for (const node of startNodes) {
+                const fiberKey = Object.keys(node).find(
+                  (k) => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$')
+                );
+                if (!fiberKey) continue;
+                let fiber = node[fiberKey];
+                let hops = 0;
+                while (fiber && hops < 40) {
+                  const props = fiber.memoizedProps || fiber.pendingProps;
+                  if (props && typeof props.onVerify === 'function') {
+                    try {
+                      props.onVerify(token);
+                      result.callback = 'react-onVerify';
+                      return result;
+                    } catch (e) { note('onVerify:' + e); break; }
+                  }
+                  const sn = fiber.stateNode;
+                  if (sn && typeof sn === 'object' && sn.props
+                      && typeof sn.props.onVerify === 'function') {
+                    try {
+                      sn.props.onVerify(token);
+                      result.callback = 'react-onVerify';
+                      return result;
+                    } catch (e) { note('stateNode-onVerify:' + e); break; }
+                  }
+                  fiber = fiber.return;
+                  hops += 1;
+                }
+              }
+
+              // 4) hCaptcha API internal client registry (best effort).
+              try {
+                const hc = window.hcaptcha;
+                if (hc) {
+                  const seen = new Set();
+                  const queue = [[hc, 0]];
+                  while (queue.length) {
+                    const [obj, depth] = queue.shift();
+                    if (!obj || typeof obj !== 'object' || seen.has(obj) || depth > 3) continue;
+                    seen.add(obj);
+                    for (const key of Object.keys(obj)) {
+                      let val;
+                      try { val = obj[key]; } catch (e) { continue; }
+                      if (val && typeof val === 'object') {
+                        if (typeof val.callback === 'function' && ('sitekey' in val)) {
+                          try {
+                            val.callback(token);
+                            result.callback = 'hcaptcha-internal';
+                            return result;
+                          } catch (e) { note('internal:' + e); }
+                        }
+                        queue.push([val, depth + 1]);
+                      }
+                    }
+                  }
+                }
+              } catch (e) { note('hcaptcha-scan:' + e); }
+
+              return result;
             }
             """,
             token,
         )
     except Exception as err:
-        logger.warning("NoneCap token injection failed | err={!r}", err)
-        return 0
-    logger.info("NoneCap token injected into {} response field(s)", count)
-    return int(count or 0)
+        logger.warning("NoneCap token delivery failed | err={!r}", err)
+        return 0, None
+
+    fields = int((result or {}).get("fields") or 0)
+    callback = (result or {}).get("callback")
+    detail = str((result or {}).get("detail") or "")
+    logger.info(
+        "NoneCap token delivered | fields={} | callback={}{}",
+        fields,
+        callback,
+        f" | detail={detail}" if detail else "",
+    )
+    return fields, callback
+
+
+async def inject_hcaptcha_token(page: Page, token: str) -> int:
+    """Backward-compatible wrapper: deliver the token, return field count."""
+    fields, _callback = await deliver_hcaptcha_token(page, token)
+    return fields
