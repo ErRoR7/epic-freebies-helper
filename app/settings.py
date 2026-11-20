@@ -86,6 +86,12 @@ class EpicSettings(AgentConfig):
     SPATIAL_POINT_REASONER_MODEL: str = Field(default="")
     SPATIAL_PATH_REASONER_MODEL: str = Field(default="")
 
+    NOPECHA_API_KEY: SecretStr | None = Field(
+        default=None,
+        description="Optional NopeCHA API key; enables token-based hCaptcha solving",
+    )
+    NOPECHA_TIMEOUT_SECONDS: float = Field(default=110.0, gt=10.0, le=300.0)
+
     cache_dir: Path = HCAPTCHA_DIR.joinpath(".cache")
     challenge_dir: Path = HCAPTCHA_DIR.joinpath(".challenge")
     captcha_response_dir: Path = HCAPTCHA_DIR.joinpath(".captcha")
@@ -196,3 +202,4 @@ settings = EpicSettings()
 settings.ignore_request_questions = ["Please drag the crossing to complete the lines"]
 apply_llm_patch(settings)
 apply_hcaptcha_drag_patch()
+

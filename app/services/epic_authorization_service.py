@@ -21,6 +21,11 @@ from playwright.async_api import expect, Page, Response
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from extensions.hcaptcha_runtime import wait_for_challenge_signal
+from extensions.nopecha_solver import (
+    extract_hcaptcha_params,
+    fetch_nopecha_token,
+    inject_hcaptcha_token,
+)
 from services.epic_totp_service import redact_totp_inputs, submit_totp_challenge, totp_login_enabled
 from settings import SCREENSHOTS_DIR, settings
 
@@ -47,6 +52,7 @@ class EpicAuthorization:
         self._totp_attempts = 0
         self._invalid_totp_rejections = 0
         self._last_captcha_totp_refresh_at = 0.0
+        self._nopecha_attempts = 0
 
     async def _on_response_anything(self, r: Response):
         if r.request.method != "POST" or "talon" in r.url:
@@ -361,6 +367,51 @@ class EpicAuthorization:
 
         raise PlaywrightTimeoutError("Timed out navigating to Epic claim page")
 
+    async def _try_nopecha_solve(self) -> bool:
+        """Try to clear the visible login hCaptcha with a NopeCHA token.
+
+        Returns True only when a token was injected and the challenge is no
+        longer visible afterwards. Never raises; any failure returns False so
+        the caller falls back to the interactive solver unchanged.
+        """
+        if settings.NOPECHA_API_KEY is None or self._nopecha_attempts >= 3:
+            return False
+        self._nopecha_attempts += 1
+        try:
+            sitekey, rqdata = await extract_hcaptcha_params(self.page)
+            if not sitekey:
+                logger.warning("NopeCHA solve skipped: no hCaptcha sitekey found on page")
+                return False
+
+            token = await fetch_nopecha_token(
+                api_key=settings.NOPECHA_API_KEY.get_secret_value(),
+                sitekey=sitekey,
+                page_url=self.page.url,
+                rqdata=rqdata,
+                timeout_seconds=settings.NOPECHA_TIMEOUT_SECONDS,
+            )
+            if not token:
+                return False
+
+            if not await inject_hcaptcha_token(self.page, token):
+                logger.warning("NopeCHA solve failed: no h-captcha-response field to inject")
+                return False
+
+            # Epic consumes the captcha response when the form is submitted.
+            await self._resubmit_password_form()
+
+            for _ in range(20):
+                if not await self._has_visible_hcaptcha():
+                    logger.success("NopeCHA token solve cleared the login captcha")
+                    return True
+                await self.page.wait_for_timeout(500)
+
+            logger.warning("NopeCHA token injected but the captcha is still visible")
+            return False
+        except Exception as err:
+            logger.warning("NopeCHA solve attempt failed | err={!r}", err)
+            return False
+
     async def _await_login_outcome(
         self, point_url: str, agent: AgentV, timeout_seconds: int = 300
     ) -> None:
@@ -508,15 +559,18 @@ class EpicAuthorization:
                 extend_deadline("captcha-visible", 180)
                 challenge_solved = False
                 try:
-                    challenge_signal = await wait_for_challenge_signal(
-                        agent,
-                        context="login_mfa",
-                        timeout_seconds=min(
-                            settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5,
-                            max(1.0, deadline - time.monotonic()),
-                        ),
-                    )
-                    challenge_solved = challenge_signal is ChallengeSignal.SUCCESS
+                    if await self._try_nopecha_solve():
+                        challenge_solved = True
+                    else:
+                        challenge_signal = await wait_for_challenge_signal(
+                            agent,
+                            context="login_mfa",
+                            timeout_seconds=min(
+                                settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5,
+                                max(1.0, deadline - time.monotonic()),
+                            ),
+                        )
+                        challenge_solved = challenge_signal is ChallengeSignal.SUCCESS
                     if challenge_solved:
                         extend_deadline("captcha-solved", 120)
                     else:
@@ -734,16 +788,19 @@ class EpicAuthorization:
             for challenge_attempt in range(1, 4):
                 logger.debug("Solving login challenge attempt {}/3", challenge_attempt)
                 challenge_signal = ChallengeSignal.FAILURE
-                try:
-                    challenge_signal = await wait_for_challenge_signal(
-                        agent,
-                        context=f"login:{challenge_attempt}",
-                        timeout_seconds=(
-                            settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5
-                        ),
-                    )
-                except Exception:
-                    pass
+                if await self._try_nopecha_solve():
+                    challenge_signal = ChallengeSignal.SUCCESS
+                else:
+                    try:
+                        challenge_signal = await wait_for_challenge_signal(
+                            agent,
+                            context=f"login:{challenge_attempt}",
+                            timeout_seconds=(
+                                settings.EXECUTION_TIMEOUT + settings.RESPONSE_TIMEOUT + 5
+                            ),
+                        )
+                    except Exception:
+                        pass
 
                 try:
                     await self._await_login_outcome(point_url, agent, timeout_seconds=25)
@@ -814,6 +871,7 @@ class EpicAuthorization:
         self._totp_attempts = 0
         self._invalid_totp_rejections = 0
         self._last_captcha_totp_refresh_at = 0.0
+        self._nopecha_attempts = 0
 
         max_attempts = settings.AUTH_MAX_ATTEMPTS
         for attempt in range(1, max_attempts + 1):
@@ -851,3 +909,4 @@ class EpicAuthorization:
 
         logger.error("Epic Games authentication failed after {} attempts", max_attempts)
         return False
+
